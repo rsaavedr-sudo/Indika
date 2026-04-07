@@ -633,7 +633,12 @@ export default function App() {
 
 function Modal({ title, children, onClose }: { title: string, children: React.ReactNode, onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    >
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -657,7 +662,7 @@ function Modal({ title, children, onClose }: { title: string, children: React.Re
           {children}
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -684,6 +689,8 @@ function ManagePointsForm({ usuario, onSuccess, onError }: { usuario: Usuario, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+
     const pontosNum = Number(formData.pontos);
 
     // Validations
@@ -706,6 +713,7 @@ function ManagePointsForm({ usuario, onSuccess, onError }: { usuario: Usuario, o
 
     setSubmitting(true);
     setError(null);
+    let success = false;
 
     try {
       const batch = writeBatch(db);
@@ -740,7 +748,7 @@ function ManagePointsForm({ usuario, onSuccess, onError }: { usuario: Usuario, o
       });
 
       await batch.commit();
-      onSuccess();
+      success = true;
     } catch (err) {
       console.error("Erro ao processar pontos:", err);
       const msg = 'Erro ao processar pontos. Tente novamente.';
@@ -748,6 +756,10 @@ function ManagePointsForm({ usuario, onSuccess, onError }: { usuario: Usuario, o
       onError(msg);
     } finally {
       setSubmitting(false);
+    }
+
+    if (success) {
+      onSuccess();
     }
   };
 
@@ -871,6 +883,7 @@ function CampanhaForm({ campanha, onSuccess, onError }: { campanha?: Campanha, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     
     // Validations
     if (Number(formData.pontos) <= 0) {
@@ -884,6 +897,7 @@ function CampanhaForm({ campanha, onSuccess, onError }: { campanha?: Campanha, o
 
     setSubmitting(true);
     setError(null);
+    let success = false;
 
     try {
       const data = {
@@ -901,8 +915,19 @@ function CampanhaForm({ campanha, onSuccess, onError }: { campanha?: Campanha, o
           ...data,
           createdAt: serverTimestamp()
         });
+        
+        // Clear form only on creation
+        setFormData({
+          nome: '',
+          descricao: '',
+          pontos: '',
+          status: 'ativa',
+          tipo: 'promocional',
+          dataInicio: new Date().toISOString().split('T')[0],
+          dataFim: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        });
       }
-      onSuccess();
+      success = true;
     } catch (err) {
       console.error("Erro ao salvar campanha:", err);
       const msg = 'Erro ao salvar campanha. Tente novamente.';
@@ -910,6 +935,10 @@ function CampanhaForm({ campanha, onSuccess, onError }: { campanha?: Campanha, o
       onError(msg);
     } finally {
       setSubmitting(false);
+    }
+
+    if (success) {
+      onSuccess();
     }
   };
 
@@ -1123,15 +1152,19 @@ function EditUserForm({ usuario, onSuccess, onError }: { usuario: Usuario, onSuc
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+
     setSubmitting(true);
     setError(null);
+    let success = false;
+
     try {
       await updateDoc(doc(db, 'usuarios', usuario.id), {
         ...formData,
         idade: Number(formData.idade),
         updatedAt: serverTimestamp()
       });
-      onSuccess();
+      success = true;
     } catch (err) {
       console.error("Erro ao atualizar usuário:", err);
       const msg = 'Erro ao atualizar usuário. Tente novamente.';
@@ -1139,6 +1172,10 @@ function EditUserForm({ usuario, onSuccess, onError }: { usuario: Usuario, onSuc
       onError(msg);
     } finally {
       setSubmitting(false);
+    }
+
+    if (success) {
+      onSuccess();
     }
   };
 
@@ -1254,8 +1291,12 @@ function AddUserForm({ onSuccess, onError }: { onSuccess: () => void, onError: (
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+
     setSubmitting(true);
     setError(null);
+    let success = false;
+
     try {
       await addDoc(collection(db, 'usuarios'), {
         ...formData,
@@ -1276,7 +1317,7 @@ function AddUserForm({ onSuccess, onError }: { onSuccess: () => void, onError: (
         email: ''
       });
 
-      onSuccess();
+      success = true;
     } catch (err) {
       console.error("Erro ao salvar usuário:", err);
       const msg = 'Erro ao criar usuário. Tente novamente.';
@@ -1284,6 +1325,10 @@ function AddUserForm({ onSuccess, onError }: { onSuccess: () => void, onError: (
       onError(msg);
     } finally {
       setSubmitting(false);
+    }
+
+    if (success) {
+      onSuccess();
     }
   };
 
