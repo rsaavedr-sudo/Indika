@@ -1,0 +1,56 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: usuarios
+// Document ID: {usuarioId}
+// Fields:
+//   - nome: string (required)
+//   - sobrenome: string (required)
+//   - cpf: string (required)
+//   - cep: string (optional)
+//   - idade: number (optional)
+//   - email: string (required)
+//   - pontos: number (required, default 0)
+//   - ativo: bool (required, default true)
+//   - createdAt: timestamp (required)
+//   - updatedAt: timestamp (required)
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      // For this admin platform, we'll allow the owner email as default admin
+      return isAuthenticated() && 
+             (request.auth.token.email == "rsaavedr@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidUsuario(data) {
+      return data.keys().hasAll(['nome', 'sobrenome', 'cpf', 'email', 'pontos', 'ativo']) &&
+             data.nome is string && data.nome.size() > 0 && data.nome.size() < 100 &&
+             data.sobrenome is string && data.sobrenome.size() > 0 && data.sobrenome.size() < 100 &&
+             data.cpf is string && data.cpf.matches("^[0-9]{3}\\.[0-9]{3}\\.[0-9]{3}-[0-9]{2}$") &&
+             data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
+             data.pontos is number &&
+             data.ativo is bool;
+    }
+
+    match /usuarios/{usuarioId} {
+      // TEMPORARY: Allow public access for development
+      allow read, write: if true;
+      
+      // allow create: if isAdmin() && isValidUsuario(request.resource.data);
+      // allow update: if isAdmin() && isValidUsuario(request.resource.data);
+    }
+  }
+}

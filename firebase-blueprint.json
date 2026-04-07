@@ -1,0 +1,28 @@
+{
+  "entities": {
+    "Usuario": {
+      "title": "Usuário",
+      "description": "Dados cadastrais e de pontuação do usuário",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string", "description": "Nome do usuário" },
+        "sobrenome": { "type": "string", "description": "Sobrenome do usuário" },
+        "cpf": { "type": "string", "description": "CPF formatado" },
+        "cep": { "type": "string", "description": "CEP formatado" },
+        "idade": { "type": "number", "description": "Idade em anos" },
+        "email": { "type": "string", "format": "email", "description": "Endereço de e-mail" },
+        "pontos": { "type": "number", "description": "Saldo de pontos" },
+        "ativo": { "type": "boolean", "description": "Status da conta" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Data de criação" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Data da última atualização" }
+      },
+      "required": ["nome", "sobrenome", "cpf", "email", "pontos", "ativo"]
+    }
+  },
+  "firestore": {
+    "/usuarios/{usuarioId}": {
+      "schema": "Usuario",
+      "description": "Coleção principal de usuários"
+    }
+  }
+}
