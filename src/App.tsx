@@ -39,6 +39,18 @@ const Home = () => {
               Entrar
             </Link>
             <Link 
+              to="/admin" 
+              className="block w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-amber-200"
+            >
+              Acesso Direto Admin (Demo)
+            </Link>
+            <Link 
+              to="/user" 
+              className="block w-full bg-slate-100 border border-slate-200 text-slate-700 font-semibold py-3 rounded-xl hover:bg-slate-200 transition-all"
+            >
+              Acesso Direto Usuário (Demo)
+            </Link>
+            <Link 
               to="/register" 
               className="block w-full bg-white border border-slate-200 text-slate-700 font-semibold py-3 rounded-xl hover:bg-slate-50 transition-all"
             >
@@ -57,15 +69,13 @@ const Home = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-3">
-              {profile?.role === 'admin' && (
-                <Link 
-                  to="/admin" 
-                  className="flex items-center justify-center gap-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200"
-                >
-                  <Settings className="w-5 h-5" />
-                  Painel Admin
-                </Link>
-              )}
+              <Link 
+                to="/admin" 
+                className="flex items-center justify-center gap-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200"
+              >
+                <Settings className="w-5 h-5" />
+                Painel Admin
+              </Link>
               <Link 
                 to="/user" 
                 className="flex items-center justify-center gap-2 w-full bg-white border border-slate-200 text-slate-700 font-semibold py-3 rounded-xl hover:bg-slate-50 transition-all"
@@ -130,19 +140,11 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Protected User Routes */}
-      <Route path="/user" element={
-        <ProtectedRoute requiredRole="usuario">
-          <UserDashboard />
-        </ProtectedRoute>
-      } />
+      {/* User Routes (Temporarily Public) */}
+      <Route path="/user" element={<UserDashboard />} />
 
-      {/* Protected Admin Routes */}
-      <Route path="/admin" element={
-        <ProtectedRoute requiredRole="admin">
-          <AdminDashboard />
-        </ProtectedRoute>
-      } />
+      {/* Admin Routes (Temporarily Public) */}
+      <Route path="/admin" element={<AdminDashboard />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
