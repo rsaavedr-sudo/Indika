@@ -86,13 +86,9 @@ export default function AdminDashboard() {
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddCampanhaModalOpen, setIsAddCampanhaModalOpen] = useState(false);
   const [isEditCampanhaModalOpen, setIsEditCampanhaModalOpen] = useState(false);
   const [editingCampanha, setEditingCampanha] = useState<Campanha | null>(null);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<Usuario | null>(null);
-  const [isPointsModalOpen, setIsPointsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // Toast auto-hide
@@ -346,10 +342,10 @@ export default function AdminDashboard() {
                           <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
                             {usuario.nome[0]}{usuario.sobrenome[0]}
                           </div>
-                          <div>
+                          <Link to={`/admin/usuarios/${usuario.id}`} className="hover:opacity-80 transition-opacity">
                             <div className="font-semibold text-slate-900">{usuario.nome} {usuario.sobrenome}</div>
                             <div className="text-xs text-slate-500">{usuario.email}</div>
-                          </div>
+                          </Link>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -378,36 +374,13 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => {
-                              setEditingUser(usuario);
-                              setIsPointsModalOpen(true);
-                            }}
+                          <Link 
+                            to={`/admin/usuarios/${usuario.id}`}
                             className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Gerenciar Pontos"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setEditingUser(usuario);
-                              setIsHistoryModalOpen(true);
-                            }}
-                            className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Histórico de Pontos"
-                          >
-                            <History className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setEditingUser(usuario);
-                              setIsEditModalOpen(true);
-                            }}
-                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                            title="Editar Perfil"
+                            title="Ver Ficha Completa"
                           >
                             <Edit2 className="w-4 h-4" />
-                          </button>
+                          </Link>
                         </div>
                       </td>
                     </tr>
@@ -524,26 +497,6 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
-      {/* Edit User Modal */}
-      <AnimatePresence>
-        {isEditModalOpen && editingUser && (
-          <Modal title={`Editar Usuário: ${editingUser.nome}`} onClose={() => {
-            setIsEditModalOpen(false);
-            setEditingUser(null);
-          }}>
-            <EditUserForm 
-              usuario={editingUser} 
-              onSuccess={() => {
-                setIsEditModalOpen(false);
-                setEditingUser(null);
-                setToast({ type: 'success', text: 'Usuário atualizado com sucesso!' });
-              }} 
-              onError={(err) => setToast({ type: 'error', text: err })}
-            />
-          </Modal>
-        )}
-      </AnimatePresence>
-
       {/* Add Campanha Modal */}
       <AnimatePresence>
         {isAddCampanhaModalOpen && (
@@ -575,38 +528,6 @@ export default function AdminDashboard() {
               }}
               onError={(err) => setToast({ type: 'error', text: err })}
             />
-          </Modal>
-        )}
-      </AnimatePresence>
-
-      {/* Points Modal */}
-      <AnimatePresence>
-        {isPointsModalOpen && editingUser && (
-          <Modal title={`Gerenciar Pontos: ${editingUser.nome}`} onClose={() => {
-            setIsPointsModalOpen(false);
-            setEditingUser(null);
-          }}>
-            <ManagePointsForm 
-              usuario={editingUser}
-              onSuccess={() => {
-                setIsPointsModalOpen(false);
-                setEditingUser(null);
-                setToast({ type: 'success', text: 'Pontos atualizados com sucesso!' });
-              }}
-              onError={(err) => setToast({ type: 'error', text: err })}
-            />
-          </Modal>
-        )}
-      </AnimatePresence>
-
-      {/* History Modal */}
-      <AnimatePresence>
-        {isHistoryModalOpen && editingUser && (
-          <Modal title={`Histórico de Pontos: ${editingUser.nome}`} onClose={() => {
-            setIsHistoryModalOpen(false);
-            setEditingUser(null);
-          }}>
-            <PointsHistoryModal usuario={editingUser} />
           </Modal>
         )}
       </AnimatePresence>
@@ -646,205 +567,6 @@ function Modal({ title, children, onClose }: { title: string, children: React.Re
         </div>
       </motion.div>
     </motion.div>
-  );
-}
-
-function ManagePointsForm({ usuario, onSuccess, onError }: { usuario: Usuario, onSuccess: () => void, onError: (msg: string) => void }) {
-  const [campanhas, setCampanhas] = useState<Campanha[]>([]);
-  const [formData, setFormData] = useState({
-    pontos: '',
-    tipo: 'credito' as 'credito' | 'debito',
-    origem: 'manual' as 'manual' | 'campanha' | 'bonus' | 'resgate',
-    descricao: '',
-    campanhaId: ''
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const q = query(collection(db, 'campanhas'), where('status', '==', 'ativa'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Campanha[];
-      setCampanhas(docs);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (submitting) return;
-
-    const pontosNum = Number(formData.pontos);
-
-    if (pontosNum <= 0) {
-      setError('A quantidade de pontos deve ser maior que 0.');
-      return;
-    }
-    if (!formData.descricao.trim()) {
-      setError('A descrição é obrigatória.');
-      return;
-    }
-    if (formData.tipo === 'debito' && pontosNum > (usuario.pontos || 0)) {
-      setError('Saldo insuficiente para realizar este débito.');
-      return;
-    }
-    if (formData.origem === 'campanha' && !formData.campanhaId) {
-      setError('Selecione uma campanha.');
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
-    let success = false;
-
-    try {
-      const batch = writeBatch(db);
-      const saldoAnterior = usuario.pontos || 0;
-      const saldoNovo = formData.tipo === 'credito' ? saldoAnterior + pontosNum : saldoAnterior - pontosNum;
-
-      const selectedCampanha = campanhas.find(c => c.id === formData.campanhaId);
-
-      const userRef = doc(db, 'usuarios', usuario.id);
-      batch.update(userRef, {
-        pontos: saldoNovo,
-        updatedAt: serverTimestamp()
-      });
-
-      const transRef = doc(collection(db, 'transacoes_pontos'));
-      batch.set(transRef, {
-        userId: usuario.id,
-        pontos: pontosNum,
-        tipo: formData.tipo,
-        origem: formData.origem,
-        descricao: formData.descricao,
-        createdAt: serverTimestamp(),
-        adminEmail: auth.currentUser?.email || 'admin@indika.com',
-        saldoAnterior,
-        saldoNovo,
-        ...(formData.origem === 'campanha' && selectedCampanha ? {
-          campanhaId: selectedCampanha.id,
-          campanhaNome: selectedCampanha.nome
-        } : {})
-      });
-
-      await batch.commit();
-      success = true;
-    } catch (err) {
-      console.error("Erro ao processar pontos:", err);
-      const msg = 'Erro ao processar pontos. Tente novamente.';
-      setError(msg);
-      onError(msg);
-    } finally {
-      setSubmitting(false);
-    }
-
-    if (success) {
-      onSuccess();
-    }
-  };
-
-  const inputClasses = "w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all";
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="p-3 rounded-xl text-sm font-medium text-center bg-red-50 text-red-700 border border-red-100 animate-in fade-in slide-in-from-top-2">
-          {error}
-        </div>
-      )}
-
-      <div className="bg-indigo-50 p-4 rounded-xl flex items-center justify-between mb-4">
-        <div>
-          <div className="text-xs font-semibold text-indigo-600 uppercase">Saldo Atual</div>
-          <div className="text-2xl font-bold text-indigo-900">{usuario.pontos || 0} pts</div>
-        </div>
-        <Trophy className="w-8 h-8 text-indigo-300" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Quantidade</label>
-          <input 
-            required
-            type="number"
-            className={inputClasses}
-            value={formData.pontos}
-            onChange={e => setFormData({...formData, pontos: e.target.value})}
-            placeholder="0"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Tipo</label>
-          <select 
-            className={inputClasses}
-            value={formData.tipo}
-            onChange={e => setFormData({...formData, tipo: e.target.value as any})}
-          >
-            <option value="credito">Crédito (+)</option>
-            <option value="debito">Débito (-)</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Origem</label>
-          <select 
-            className={inputClasses}
-            value={formData.origem}
-            onChange={e => setFormData({...formData, origem: e.target.value as any})}
-          >
-            <option value="manual">Manual</option>
-            <option value="campanha">Campanha</option>
-            <option value="bonus">Bônus</option>
-            <option value="resgate">Resgate</option>
-          </select>
-        </div>
-        {formData.origem === 'campanha' && (
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Campanha</label>
-            <select 
-              className={inputClasses}
-              value={formData.campanhaId}
-              onChange={e => {
-                const camp = campanhas.find(c => c.id === e.target.value);
-                setFormData({
-                  ...formData, 
-                  campanhaId: e.target.value,
-                  pontos: camp ? camp.pontos.toString() : formData.pontos,
-                  descricao: camp ? `Pontos da campanha: ${camp.nome}` : formData.descricao
-                });
-              }}
-            >
-              <option value="">Selecionar...</option>
-              {campanhas.map(c => (
-                <option key={c.id} value={c.id}>{c.nome} ({c.pontos} pts)</option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-1">
-        <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Descrição</label>
-        <textarea 
-          required
-          rows={3}
-          className={cn(inputClasses, "resize-none")}
-          value={formData.descricao}
-          onChange={e => setFormData({...formData, descricao: e.target.value})}
-          placeholder="Motivo da alteração..."
-        />
-      </div>
-
-      <button 
-        disabled={submitting}
-        type="submit"
-        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
-      >
-        {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirmar Operação'}
-      </button>
-    </form>
   );
 }
 
@@ -1020,236 +742,6 @@ function CampanhaForm({ campanha, onSuccess, onError }: { campanha?: Campanha, o
         className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
       >
         {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (campanha ? 'Salvar Alterações' : 'Criar Campanha')}
-      </button>
-    </form>
-  );
-}
-
-function PointsHistoryModal({ usuario }: { usuario: Usuario }) {
-  const [transacoes, setTransacoes] = useState<TransacaoPonto[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const q = query(
-      collection(db, 'transacoes_pontos'),
-      where('userId', '==', usuario.id),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as TransacaoPonto[];
-      setTransacoes(docs);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [usuario.id]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-      {transacoes.length === 0 ? (
-        <div className="text-center py-12 text-slate-500">
-          Nenhuma transação encontrada para este usuário.
-        </div>
-      ) : (
-        transacoes.map((t) => (
-          <div key={t.id} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:border-slate-200 transition-all">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "p-2 rounded-lg",
-                  t.tipo === 'credito' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-                )}>
-                  {t.tipo === 'credito' ? <ArrowUpCircle className="w-5 h-5" /> : <ArrowDownCircle className="w-5 h-5" />}
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900">
-                    {t.tipo === 'credito' ? '+' : '-'}{t.pontos} pts
-                  </div>
-                  <div className="text-xs text-slate-500 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {t.createdAt?.toDate().toLocaleString('pt-BR')}
-                  </div>
-                </div>
-              </div>
-              <span className={cn(
-                "text-[10px] font-bold uppercase px-2 py-1 rounded-full",
-                t.origem === 'manual' ? "bg-blue-50 text-blue-600" :
-                t.origem === 'campanha' ? "bg-purple-50 text-purple-600" :
-                t.origem === 'bonus' ? "bg-amber-50 text-amber-600" :
-                "bg-slate-50 text-slate-600"
-              )}>
-                {t.origem}
-              </span>
-            </div>
-            
-            <div className="text-sm text-slate-600 mb-3 bg-slate-50 p-2 rounded-lg italic">
-              "{t.descricao}"
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-400 border-t border-slate-50 pt-3">
-              <div className="flex flex-col">
-                <span className="font-semibold uppercase">Saldo</span>
-                <span className="text-slate-600">{t.saldoAnterior} → {t.saldoNovo}</span>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="font-semibold uppercase">Admin</span>
-                <span className="text-slate-600 truncate max-w-[120px]">{t.adminEmail}</span>
-              </div>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-function EditUserForm({ usuario, onSuccess, onError }: { usuario: Usuario, onSuccess: () => void, onError: (msg: string) => void }) {
-  const [formData, setFormData] = useState({
-    nome: usuario.nome,
-    sobrenome: usuario.sobrenome,
-    cpf: usuario.cpf,
-    cep: usuario.cep || '',
-    idade: usuario.idade?.toString() || '',
-    email: usuario.email,
-    ativo: usuario.ativo
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (submitting) return;
-
-    setSubmitting(true);
-    setError(null);
-    let success = false;
-
-    try {
-      await updateDoc(doc(db, 'usuarios', usuario.id), {
-        ...formData,
-        idade: Number(formData.idade),
-        updatedAt: serverTimestamp()
-      });
-      success = true;
-    } catch (err) {
-      console.error("Erro ao atualizar usuário:", err);
-      const msg = 'Erro ao atualizar usuário. Tente novamente.';
-      setError(msg);
-      onError(msg);
-    } finally {
-      setSubmitting(false);
-    }
-
-    if (success) {
-      onSuccess();
-    }
-  };
-
-  const inputClasses = "w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all";
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="p-3 rounded-xl text-sm font-medium text-center bg-red-50 text-red-700 border border-red-100 animate-in fade-in slide-in-from-top-2">
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Nome</label>
-          <input 
-            required
-            className={inputClasses}
-            value={formData.nome}
-            onChange={e => setFormData({...formData, nome: e.target.value})}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Sobrenome</label>
-          <input 
-            required
-            className={inputClasses}
-            value={formData.sobrenome}
-            onChange={e => setFormData({...formData, sobrenome: e.target.value})}
-          />
-        </div>
-      </div>
-      
-      <div className="space-y-1">
-        <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Email</label>
-        <input 
-          required
-          type="email"
-          className={inputClasses}
-          value={formData.email}
-          onChange={e => setFormData({...formData, email: e.target.value})}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">CPF</label>
-          <input 
-            required
-            placeholder="000.000.000-00"
-            className={inputClasses}
-            value={formData.cpf}
-            onChange={e => setFormData({...formData, cpf: e.target.value})}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">CEP</label>
-          <input 
-            placeholder="00000-000"
-            className={inputClasses}
-            value={formData.cep}
-            onChange={e => setFormData({...formData, cep: e.target.value})}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Idade</label>
-          <input 
-            type="number"
-            className={inputClasses}
-            value={formData.idade}
-            onChange={e => setFormData({...formData, idade: e.target.value})}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Status</label>
-          <select 
-            className={inputClasses}
-            value={formData.ativo ? 'true' : 'false'}
-            onChange={e => setFormData({...formData, ativo: e.target.value === 'true'})}
-          >
-            <option value="true">Ativo</option>
-            <option value="false">Inativo</option>
-          </select>
-        </div>
-      </div>
-
-      <button 
-        disabled={submitting}
-        type="submit"
-        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
-      >
-        {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Salvar Alterações'}
       </button>
     </form>
   );

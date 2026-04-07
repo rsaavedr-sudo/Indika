@@ -5,6 +5,7 @@ import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import UserDashboard from './components/App/UserDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
+import UserDetail from './components/Admin/UserDetail';
 import { Loader2, LayoutDashboard, User, Settings, LogOut } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from './firebase';
@@ -145,6 +146,7 @@ function AppRoutes() {
 
       {/* Admin Routes (Temporarily Public) */}
       <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/admin/usuarios/:id" element={<UserDetail />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
