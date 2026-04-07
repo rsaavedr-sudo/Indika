@@ -99,13 +99,19 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 text-center space-y-4">
           <p className="text-sm text-slate-500">
             Não tem uma conta?{' '}
             <Link to="/register" className="text-indigo-600 font-semibold hover:underline">
               Cadastre-se
             </Link>
           </p>
+          
+          <div className="pt-4 border-t border-slate-100">
+            <Link to="/app" className="text-xs text-slate-400 hover:text-indigo-500 transition-colors">
+              Acesso rápido à Área do Usuário (/app)
+            </Link>
+          </div>
         </div>
       </motion.div>
     </div>
