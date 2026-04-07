@@ -53,9 +53,19 @@ export default function App() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const [isPointsModalOpen, setIsPointsModalOpen] = useState(false);
   const [pointsAmount, setPointsAmount] = useState(0);
+  const [toast, setToast] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Toast auto-hide
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // Auth Listener
   useEffect(() => {
@@ -115,8 +125,10 @@ export default function App() {
       setIsPointsModalOpen(false);
       setPointsAmount(0);
       setEditingUser(null);
+      setToast({ type: 'success', text: 'Pontos adicionados com sucesso!' });
     } catch (error) {
       console.error("Erro ao adicionar pontos:", error);
+      setToast({ type: 'error', text: 'Erro ao adicionar pontos.' });
     }
   };
 
@@ -139,6 +151,24 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 20, x: '-50%' }}
+            className={cn(
+              "fixed bottom-8 left-1/2 z-50 px-6 py-3 rounded-2xl shadow-2xl font-semibold flex items-center gap-3 min-w-[320px] justify-center",
+              toast.type === 'success' ? "bg-indigo-600 text-white" : "bg-red-600 text-white"
+            )}
+          >
+            {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+            {toast.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -292,6 +322,10 @@ export default function App() {
                           <Plus className="w-4 h-4" />
                         </button>
                         <button 
+                          onClick={() => {
+                            setEditingUser(usuario);
+                            setIsEditModalOpen(true);
+                          }}
                           className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                           title="Editar Perfil"
                         >
@@ -318,7 +352,33 @@ export default function App() {
       <AnimatePresence>
         {isAddModalOpen && (
           <Modal title="Novo Usuário" onClose={() => setIsAddModalOpen(false)}>
-            <AddUserForm onSuccess={() => setIsAddModalOpen(false)} />
+            <AddUserForm 
+              onSuccess={() => {
+                setIsAddModalOpen(false);
+                setToast({ type: 'success', text: 'Usuário criado com sucesso!' });
+              }} 
+              onError={(err) => setToast({ type: 'error', text: err })}
+            />
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Edit User Modal */}
+      <AnimatePresence>
+        {isEditModalOpen && editingUser && (
+          <Modal title={`Editar Usuário: ${editingUser.nome}`} onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingUser(null);
+          }}>
+            <EditUserForm 
+              usuario={editingUser} 
+              onSuccess={() => {
+                setIsEditModalOpen(false);
+                setEditingUser(null);
+                setToast({ type: 'success', text: 'Usuário atualizado com sucesso!' });
+              }} 
+              onError={(err) => setToast({ type: 'error', text: err })}
+            />
           </Modal>
         )}
       </AnimatePresence>
@@ -393,32 +453,35 @@ function Modal({ title, children, onClose }: { title: string, children: React.Re
   );
 }
 
-function AddUserForm({ onSuccess }: { onSuccess: () => void }) {
+function EditUserForm({ usuario, onSuccess, onError }: { usuario: Usuario, onSuccess: () => void, onError: (msg: string) => void }) {
   const [formData, setFormData] = useState({
-    nome: '',
-    sobrenome: '',
-    cpf: '',
-    cep: '',
-    idade: '',
-    email: ''
+    nome: usuario.nome,
+    sobrenome: usuario.sobrenome,
+    cpf: usuario.cpf,
+    cep: usuario.cep || '',
+    idade: usuario.idade?.toString() || '',
+    email: usuario.email,
+    ativo: usuario.ativo
   });
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
     try {
-      await addDoc(collection(db, 'usuarios'), {
+      await updateDoc(doc(db, 'usuarios', usuario.id), {
         ...formData,
         idade: Number(formData.idade),
-        pontos: 0,
-        ativo: true,
-        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
       onSuccess();
-    } catch (error) {
-      console.error("Erro ao salvar usuário:", error);
+    } catch (err) {
+      console.error("Erro ao atualizar usuário:", err);
+      const msg = 'Erro ao atualizar usuário. Tente novamente.';
+      setError(msg);
+      onError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -428,6 +491,157 @@ function AddUserForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="p-3 rounded-xl text-sm font-medium text-center bg-red-50 text-red-700 border border-red-100 animate-in fade-in slide-in-from-top-2">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Nome</label>
+          <input 
+            required
+            className={inputClasses}
+            value={formData.nome}
+            onChange={e => setFormData({...formData, nome: e.target.value})}
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Sobrenome</label>
+          <input 
+            required
+            className={inputClasses}
+            value={formData.sobrenome}
+            onChange={e => setFormData({...formData, sobrenome: e.target.value})}
+          />
+        </div>
+      </div>
+      
+      <div className="space-y-1">
+        <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Email</label>
+        <input 
+          required
+          type="email"
+          className={inputClasses}
+          value={formData.email}
+          onChange={e => setFormData({...formData, email: e.target.value})}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">CPF</label>
+          <input 
+            required
+            placeholder="000.000.000-00"
+            className={inputClasses}
+            value={formData.cpf}
+            onChange={e => setFormData({...formData, cpf: e.target.value})}
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">CEP</label>
+          <input 
+            placeholder="00000-000"
+            className={inputClasses}
+            value={formData.cep}
+            onChange={e => setFormData({...formData, cep: e.target.value})}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Idade</label>
+          <input 
+            type="number"
+            className={inputClasses}
+            value={formData.idade}
+            onChange={e => setFormData({...formData, idade: e.target.value})}
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Status</label>
+          <select 
+            className={inputClasses}
+            value={formData.ativo ? 'true' : 'false'}
+            onChange={e => setFormData({...formData, ativo: e.target.value === 'true'})}
+          >
+            <option value="true">Ativo</option>
+            <option value="false">Inativo</option>
+          </select>
+        </div>
+      </div>
+
+      <button 
+        disabled={submitting}
+        type="submit"
+        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
+      >
+        {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Salvar Alterações'}
+      </button>
+    </form>
+  );
+}
+
+function AddUserForm({ onSuccess, onError }: { onSuccess: () => void, onError: (msg: string) => void }) {
+  const [formData, setFormData] = useState({
+    nome: '',
+    sobrenome: '',
+    cpf: '',
+    cep: '',
+    idade: '',
+    email: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await addDoc(collection(db, 'usuarios'), {
+        ...formData,
+        idade: Number(formData.idade),
+        pontos: 0,
+        ativo: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      // Clear form
+      setFormData({
+        nome: '',
+        sobrenome: '',
+        cpf: '',
+        cep: '',
+        idade: '',
+        email: ''
+      });
+
+      onSuccess();
+    } catch (err) {
+      console.error("Erro ao salvar usuário:", err);
+      const msg = 'Erro ao criar usuário. Tente novamente.';
+      setError(msg);
+      onError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const inputClasses = "w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all";
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="p-3 rounded-xl text-sm font-medium text-center bg-red-50 text-red-700 border border-red-100 animate-in fade-in slide-in-from-top-2">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Nome</label>
