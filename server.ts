@@ -57,10 +57,21 @@ async function startServer() {
 
   // API Routes
   
+  // Helper for consistent error responses
+  const sendError = (res: express.Response, status: number, message: string, code?: string) => {
+    return res.status(status).json({ 
+      success: false, 
+      message, 
+      code: code || 'internal-error' 
+    });
+  };
+
   // Check if user exists in Auth
   app.get("/api/admin/auth/check", async (req, res) => {
     const { email, uid } = req.query;
-    if (!firebaseAdminInitialized) return res.status(500).json({ message: "Firebase Admin not initialized" });
+    if (!firebaseAdminInitialized) {
+      return sendError(res, 503, "Firebase Admin not initialized. Please check configuration.");
+    }
 
     try {
       let userRecord;
@@ -85,20 +96,27 @@ async function startServer() {
         return res.json({ exists: false });
       }
       console.error("Error checking auth user:", error);
-      res.status(500).json({ message: error.message });
+      sendError(res, 500, error.message, error.code);
     }
   });
 
   // Create Auth User
   app.post("/api/admin/auth/create", async (req, res) => {
     const { userId, email, password, nome, sobrenome } = req.body;
-    if (!firebaseAdminInitialized) return res.status(500).json({ message: "Firebase Admin not initialized" });
+    
+    if (!firebaseAdminInitialized) {
+      return sendError(res, 503, "Firebase Admin not initialized. Please check configuration.");
+    }
+
+    if (!email || !password || !userId) {
+      return sendError(res, 400, "Dados insuficientes para criar acesso (email, senha e ID do usuário são obrigatórios).");
+    }
 
     try {
       const userRecord = await admin.auth().createUser({
         email,
         password,
-        displayName: `${nome} ${sobrenome}`,
+        displayName: `${nome} ${sobrenome}`.trim(),
         emailVerified: true
       });
 
@@ -112,26 +130,46 @@ async function startServer() {
       res.json({ success: true, uid: userRecord.uid });
     } catch (error: any) {
       console.error("Error creating auth user:", error);
-      res.status(500).json({ message: error.message });
+      let message = error.message;
+      if (error.code === 'auth/email-already-exists') {
+        message = "Este email já está em uso por outra conta.";
+      } else if (error.code === 'auth/invalid-password') {
+        message = "A senha deve ter pelo menos 6 caracteres.";
+      }
+      sendError(res, 500, message, error.code);
     }
   });
 
   // Update Auth User
   app.post("/api/admin/auth/update", async (req, res) => {
     const { uid, email, password, disabled, action } = req.body;
-    if (!firebaseAdminInitialized) return res.status(500).json({ message: "Firebase Admin not initialized" });
+    if (!firebaseAdminInitialized) {
+      return sendError(res, 503, "Firebase Admin not initialized.");
+    }
+
+    if (!uid) {
+      return sendError(res, 400, "UID do usuário é obrigatório.");
+    }
 
     try {
       const updateData: any = {};
-      if (action === 'email') updateData.email = email;
-      if (action === 'password' && password) updateData.password = password;
-      if (action === 'status') updateData.disabled = disabled;
+      if (action === 'email') {
+        if (!email) return sendError(res, 400, "Email é obrigatório para atualização.");
+        updateData.email = email;
+      }
+      if (action === 'password') {
+        if (!password) return sendError(res, 400, "Senha é obrigatória para atualização.");
+        updateData.password = password;
+      }
+      if (action === 'status') {
+        updateData.disabled = disabled;
+      }
 
       await admin.auth().updateUser(uid, updateData);
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error updating auth user:", error);
-      res.status(500).json({ message: error.message });
+      sendError(res, 500, error.message, error.code);
     }
   });
 

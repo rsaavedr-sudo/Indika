@@ -184,6 +184,17 @@ export default function UserDetail() {
 
   const handleCreateAuth = async () => {
     if (!id || !usuario) return;
+    
+    // Basic validation
+    if (!authForm.email || !authForm.email.includes('@')) {
+      setToast({ type: 'error', text: 'Por favor, insira um email válido.' });
+      return;
+    }
+    if (!authForm.password || authForm.password.length < 6) {
+      setToast({ type: 'error', text: 'A senha deve ter pelo menos 6 caracteres.' });
+      return;
+    }
+
     setAuthLoading(true);
     try {
       const response = await fetch('/api/admin/auth/create', {
@@ -198,29 +209,51 @@ export default function UserDetail() {
         })
       });
       
-      const data = await response.json();
+      let data;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(text || `Erro do servidor: ${response.status}`);
+      }
+
       if (response.ok) {
         setToast({ type: 'success', text: 'Acesso criado com sucesso!' });
+        // Update local state to reflect the new UID
+        setUsuario(prev => prev ? { ...prev, uid: data.uid } : null);
         checkAuthAccount(authForm.email, data.uid);
       } else {
         throw new Error(data.message || 'Erro ao criar acesso.');
       }
     } catch (error: any) {
-      setToast({ type: 'error', text: error.message });
+      console.error("Erro na criação de acesso:", error);
+      setToast({ type: 'error', text: error.message || 'Falha na comunicação com o servidor.' });
     } finally {
       setAuthLoading(false);
     }
   };
 
   const handleUpdateAuth = async (action: 'email' | 'password' | 'status') => {
-    if (!authAccount || !id) return;
+    if (!authAccount || !id || !usuario) return;
+    
+    // Validation for updates
+    if (action === 'email' && (!authForm.email || !authForm.email.includes('@'))) {
+      setToast({ type: 'error', text: 'Por favor, insira um email válido.' });
+      return;
+    }
+    if (action === 'password' && (!authForm.password || authForm.password.length < 6)) {
+      setToast({ type: 'error', text: 'A senha deve ter pelo menos 6 caracteres.' });
+      return;
+    }
+
     setAuthLoading(true);
     try {
       const response = await fetch('/api/admin/auth/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uid: usuario?.uid,
+          uid: usuario.uid,
           email: authForm.email,
           password: authForm.password,
           disabled: action === 'status' ? !authAccount.disabled : authAccount.disabled,
@@ -228,15 +261,26 @@ export default function UserDetail() {
         })
       });
       
+      let data;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(text || `Erro do servidor: ${response.status}`);
+      }
+
       if (response.ok) {
         setToast({ type: 'success', text: 'Acesso atualizado com sucesso!' });
-        checkAuthAccount(authForm.email, usuario?.uid);
+        checkAuthAccount(authForm.email, usuario.uid);
+        // Clear password field after update
+        if (action === 'password') setAuthForm(prev => ({ ...prev, password: '' }));
       } else {
-        const data = await response.json();
         throw new Error(data.message || 'Erro ao atualizar acesso.');
       }
     } catch (error: any) {
-      setToast({ type: 'error', text: error.message });
+      console.error("Erro na atualização de acesso:", error);
+      setToast({ type: 'error', text: error.message || 'Falha na comunicação com o servidor.' });
     } finally {
       setAuthLoading(false);
     }
