@@ -45,12 +45,51 @@ service cloud.firestore {
              data.ativo is bool;
     }
 
+    function isValidTransacao(data) {
+      return data.keys().hasAll(['userId', 'pontos', 'tipo', 'origem', 'descricao', 'createdAt', 'saldoAnterior', 'saldoNovo']) &&
+             data.userId is string &&
+             data.pontos is number && data.pontos > 0 &&
+             data.tipo in ['credito', 'debito'] &&
+             data.origem in ['manual', 'campanha', 'bonus', 'resgate'] &&
+             data.descricao is string && data.descricao.size() > 0 &&
+             data.saldoAnterior is number &&
+             data.saldoNovo is number &&
+             (!('campanhaId' in data) || data.campanhaId is string) &&
+             (!('campanhaNome' in data) || data.campanhaNome is string);
+    }
+
+    function isValidCampanha(data) {
+      return data.keys().hasAll(['nome', 'descricao', 'pontos', 'status', 'tipo', 'dataInicio', 'dataFim']) &&
+             data.nome is string && data.nome.size() > 0 &&
+             data.descricao is string && data.descricao.size() > 0 &&
+             data.pontos is number && data.pontos > 0 &&
+             data.status in ['ativa', 'inativa'] &&
+             data.tipo in ['indicacao', 'acao_manual', 'bonus', 'promocional'] &&
+             data.dataInicio is timestamp &&
+             data.dataFim is timestamp;
+    }
+
     match /usuarios/{usuarioId} {
       // TEMPORARY: Allow public access for development
       allow read, write: if true;
       
       // allow create: if isAdmin() && isValidUsuario(request.resource.data);
       // allow update: if isAdmin() && isValidUsuario(request.resource.data);
+    }
+
+    match /transacoes_pontos/{transacaoId} {
+      // TEMPORARY: Allow public access for development
+      allow read, write: if true;
+
+      // allow create: if isAdmin() && isValidTransacao(request.resource.data);
+    }
+
+    match /campanhas/{campanhaId} {
+      // TEMPORARY: Allow public access for development
+      allow read, write: if true;
+
+      // allow create: if isAdmin() && isValidCampanha(request.resource.data);
+      // allow update: if isAdmin() && isValidCampanha(request.resource.data);
     }
   }
 }

@@ -17,12 +17,54 @@
         "updatedAt": { "type": "string", "format": "date-time", "description": "Data da última atualização" }
       },
       "required": ["nome", "sobrenome", "cpf", "email", "pontos", "ativo"]
+    },
+    "TransacaoPonto": {
+      "title": "Transação de Pontos",
+      "description": "Registro de movimentação de pontos do usuário",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID do usuário" },
+        "pontos": { "type": "number", "description": "Quantidade de pontos movimentada" },
+        "tipo": { "type": "string", "enum": ["credito", "debito"], "description": "Tipo da transação" },
+        "origem": { "type": "string", "enum": ["manual", "campanha", "bonus", "resgate"], "description": "Origem da transação" },
+        "descricao": { "type": "string", "description": "Descrição detalhada" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Data da transação" },
+        "adminEmail": { "type": "string", "description": "Email do administrador responsável" },
+        "saldoAnterior": { "type": "number", "description": "Saldo antes da transação" },
+        "saldoNovo": { "type": "number", "description": "Saldo após a transação" }
+      },
+      "required": ["userId", "pontos", "tipo", "origem", "descricao", "createdAt", "saldoAnterior", "saldoNovo"]
+    },
+    "Campanha": {
+      "title": "Campanha",
+      "description": "Definição de uma campanha de pontuação",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string", "description": "Nome da campanha" },
+        "descricao": { "type": "string", "description": "Descrição da campanha" },
+        "pontos": { "type": "number", "description": "Pontos base da campanha" },
+        "status": { "type": "string", "enum": ["ativa", "inativa"], "description": "Status da campanha" },
+        "tipo": { "type": "string", "enum": ["indicacao", "acao_manual", "bonus", "promocional"], "description": "Tipo da campanha" },
+        "dataInicio": { "type": "string", "format": "date-time", "description": "Data de início" },
+        "dataFim": { "type": "string", "format": "date-time", "description": "Data de término" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Data de criação" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Data de atualização" }
+      },
+      "required": ["nome", "descricao", "pontos", "status", "tipo", "dataInicio", "dataFim"]
     }
   },
   "firestore": {
     "/usuarios/{usuarioId}": {
       "schema": "Usuario",
       "description": "Coleção principal de usuários"
+    },
+    "/transacoes_pontos/{transacaoId}": {
+      "schema": "TransacaoPonto",
+      "description": "Histórico de transações de pontos"
+    },
+    "/campanhas/{campanhaId}": {
+      "schema": "Campanha",
+      "description": "Coleção de campanhas"
     }
   }
 }
