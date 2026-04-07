@@ -19,7 +19,10 @@ export default function Login() {
     setError(null);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // Handle 'admin' shortcut
+      const loginEmail = email === 'admin' ? 'admin@indika.com' : email;
+      
+      await signInWithEmailAndPassword(auth, loginEmail, password);
       // Stay on current route or go to home
       navigate('/');
     } catch (err: any) {
