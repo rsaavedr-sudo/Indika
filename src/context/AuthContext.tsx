@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 interface UserProfile {
+  id?: string; // Firestore Document ID
   uid: string;
   nome: string;
   sobrenome: string;
@@ -30,10 +31,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (uid: string) => {
     try {
+      // First try direct document fetch (for users registered via Register.tsx)
       const docRef = doc(db, 'usuarios', uid);
       const docSnap = await getDoc(docRef);
+      
       if (docSnap.exists()) {
-        setProfile(docSnap.data() as UserProfile);
+        setProfile({ id: docSnap.id, ...docSnap.data() } as UserProfile);
+        return;
+      }
+
+      // If not found, query by uid field (for users created by admin)
+      const q = query(collection(db, 'usuarios'), where('uid', '==', uid), limit(1));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        setProfile({ id: userDoc.id, ...userDoc.data() } as UserProfile);
       } else {
         setProfile(null);
       }

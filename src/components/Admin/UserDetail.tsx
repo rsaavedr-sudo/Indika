@@ -53,6 +53,10 @@ interface Usuario {
   ativo: boolean;
   role: 'admin' | 'usuario';
   uid?: string; // Firebase Auth UID
+  emailLogin?: string;
+  hasAccess?: boolean;
+  accessCreatedAt?: Timestamp;
+  mustChangePassword?: boolean;
   createdAt: Timestamp;
 }
 
@@ -220,8 +224,15 @@ export default function UserDetail() {
 
       if (response.ok) {
         setToast({ type: 'success', text: 'Acesso criado com sucesso!' });
-        // Update local state to reflect the new UID
-        setUsuario(prev => prev ? { ...prev, uid: data.uid } : null);
+        
+        // Re-fetch user document to get the new fields (hasAccess, emailLogin, etc.)
+        const userDoc = await getDoc(doc(db, 'usuarios', id));
+        if (userDoc.exists()) {
+          const updatedData = { id: userDoc.id, ...userDoc.data() } as Usuario;
+          setUsuario(updatedData);
+          setFormData(updatedData);
+        }
+
         checkAuthAccount(authForm.email, data.uid);
       } else {
         throw new Error(data.message || 'Erro ao criar acesso.');

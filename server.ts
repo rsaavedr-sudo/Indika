@@ -56,6 +56,10 @@ async function startServer() {
   await initFirebaseAdmin();
 
   // API Routes
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+  });
   
   // Helper for consistent error responses
   const sendError = (res: express.Response, status: number, message: string, code?: string) => {
@@ -113,6 +117,7 @@ async function startServer() {
     }
 
     try {
+      // Create user in Firebase Auth
       const userRecord = await admin.auth().createUser({
         email,
         password,
@@ -120,10 +125,14 @@ async function startServer() {
         emailVerified: true
       });
 
-      // Update Firestore with the new UID
+      // Update Firestore with the new UID and access metadata
       const db = admin.firestore();
       await db.collection('usuarios').doc(userId).update({
         uid: userRecord.uid,
+        emailLogin: email,
+        hasAccess: true,
+        accessCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        mustChangePassword: true, // Force password change on first login (optional but recommended)
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
