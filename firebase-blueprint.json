@@ -5,6 +5,7 @@
       "description": "Dados cadastrais e de pontuação do usuário",
       "type": "object",
       "properties": {
+        "uid": { "type": "string", "description": "ID único do Firebase Auth" },
         "nome": { "type": "string", "description": "Nome do usuário" },
         "sobrenome": { "type": "string", "description": "Sobrenome do usuário" },
         "cpf": { "type": "string", "description": "CPF formatado" },
@@ -13,10 +14,11 @@
         "email": { "type": "string", "format": "email", "description": "Endereço de e-mail" },
         "pontos": { "type": "number", "description": "Saldo de pontos" },
         "ativo": { "type": "boolean", "description": "Status da conta" },
+        "role": { "type": "string", "enum": ["admin", "usuario"], "description": "Papel do usuário no sistema" },
         "createdAt": { "type": "string", "format": "date-time", "description": "Data de criação" },
         "updatedAt": { "type": "string", "format": "date-time", "description": "Data da última atualização" }
       },
-      "required": ["nome", "sobrenome", "cpf", "email", "pontos", "ativo"]
+      "required": ["uid", "nome", "sobrenome", "cpf", "email", "pontos", "ativo", "role"]
     },
     "TransacaoPonto": {
       "title": "Transação de Pontos",

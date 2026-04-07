@@ -29,20 +29,31 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function getUserData() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
     function isAdmin() {
-      // For this admin platform, we'll allow the owner email as default admin
-      return isAuthenticated() && 
-             (request.auth.token.email == "rsaavedr@gmail.com" && request.auth.token.email_verified == true);
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && getUserData().role == 'admin') || 
+        (request.auth.token.email == "rsaavedr@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
     function isValidUsuario(data) {
-      return data.keys().hasAll(['nome', 'sobrenome', 'cpf', 'email', 'pontos', 'ativo']) &&
-             data.nome is string && data.nome.size() > 0 && data.nome.size() < 100 &&
-             data.sobrenome is string && data.sobrenome.size() > 0 && data.sobrenome.size() < 100 &&
-             data.cpf is string && data.cpf.matches("^[0-9]{3}\\.[0-9]{3}\\.[0-9]{3}-[0-9]{2}$") &&
-             data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
+      return data.keys().hasAll(['uid', 'nome', 'sobrenome', 'cpf', 'email', 'pontos', 'ativo', 'role']) &&
+             data.uid is string &&
+             data.nome is string && data.nome.size() > 0 &&
+             data.sobrenome is string && data.sobrenome.size() > 0 &&
+             data.cpf is string &&
+             data.email is string &&
              data.pontos is number &&
-             data.ativo is bool;
+             data.ativo is bool &&
+             data.role in ['admin', 'usuario'];
     }
 
     function isValidTransacao(data) {
@@ -70,26 +81,25 @@ service cloud.firestore {
     }
 
     match /usuarios/{usuarioId} {
-      // TEMPORARY: Allow public access for development
-      allow read, write: if true;
-      
-      // allow create: if isAdmin() && isValidUsuario(request.resource.data);
-      // allow update: if isAdmin() && isValidUsuario(request.resource.data);
+      allow read: if isAuthenticated() && (isOwner(usuarioId) || isAdmin());
+      allow create: if isAuthenticated() && (
+        (isOwner(usuarioId) && request.resource.data.role == 'usuario') || 
+        isAdmin()
+      );
+      allow update: if isAuthenticated() && (
+        (isOwner(usuarioId) && request.resource.data.role == resource.data.role) || 
+        isAdmin()
+      );
     }
 
     match /transacoes_pontos/{transacaoId} {
-      // TEMPORARY: Allow public access for development
-      allow read, write: if true;
-
-      // allow create: if isAdmin() && isValidTransacao(request.resource.data);
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAdmin();
     }
 
     match /campanhas/{campanhaId} {
-      // TEMPORARY: Allow public access for development
-      allow read, write: if true;
-
-      // allow create: if isAdmin() && isValidCampanha(request.resource.data);
-      // allow update: if isAdmin() && isValidCampanha(request.resource.data);
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
   }
 }
