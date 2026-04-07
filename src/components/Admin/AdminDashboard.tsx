@@ -15,8 +15,11 @@ import {
   ArrowDownCircle,
   Calendar,
   Megaphone,
-  Tag
+  Tag,
+  Settings,
+  User
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   collection, 
@@ -201,6 +204,28 @@ export default function AdminDashboard() {
           </div>
           
           <div className="flex items-center gap-4">
+            <nav className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl mr-4">
+              <Link 
+                to="/admin"
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                  "bg-white text-indigo-600 shadow-sm"
+                )}
+              >
+                <Settings className="w-4 h-4" />
+                Admin
+              </Link>
+              <Link 
+                to="/user"
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                  "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <User className="w-4 h-4" />
+                Usuário
+              </Link>
+            </nav>
             <nav className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl mr-4">
               <button 
                 onClick={() => setActiveTab('usuarios')}

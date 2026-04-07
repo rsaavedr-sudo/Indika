@@ -19,23 +19,9 @@ export default function Login() {
     setError(null);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // Check profile and role
-      const docRef = doc(db, 'usuarios', user.uid);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const profile = docSnap.data();
-        if (profile.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/app');
-        }
-      } else {
-        setError("Perfil não encontrado no sistema. Entre em contato com o suporte.");
-      }
+      await signInWithEmailAndPassword(auth, email, password);
+      // Stay on current route or go to home
+      navigate('/');
     } catch (err: any) {
       console.error("Login error:", err);
       setError("Email ou senha inválidos.");
@@ -108,8 +94,8 @@ export default function Login() {
           </p>
           
           <div className="pt-4 border-t border-slate-100">
-            <Link to="/app" className="text-xs text-slate-400 hover:text-indigo-500 transition-colors">
-              Acesso rápido à Área do Usuário (/app)
+            <Link to="/user" className="text-xs text-slate-400 hover:text-indigo-500 transition-colors">
+              Acesso rápido à Área do Usuário (/user)
             </Link>
           </div>
         </div>

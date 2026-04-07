@@ -62,7 +62,7 @@ export default function Register() {
 
       setSuccess(true);
       setTimeout(() => {
-        navigate('/app');
+        navigate('/');
       }, 1500);
     } catch (err: any) {
       console.error("Registration error:", err);

@@ -10,6 +10,7 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { motion } from 'motion/react';
+import { Link } from 'react-router-dom';
 import { 
   Trophy, 
   LogOut, 
@@ -19,7 +20,9 @@ import {
   ArrowDownCircle,
   Calendar,
   Tag,
-  Loader2
+  Loader2,
+  Settings,
+  User
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -105,6 +108,30 @@ export default function UserDashboard() {
           </div>
           
           <div className="flex items-center gap-4">
+            <nav className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl mr-4">
+              {profile?.role === 'admin' && (
+                <Link 
+                  to="/admin"
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                    "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  <Settings className="w-4 h-4" />
+                  Admin
+                </Link>
+              )}
+              <Link 
+                to="/user"
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                  "bg-white text-indigo-600 shadow-sm"
+                )}
+              >
+                <User className="w-4 h-4" />
+                Usuário
+              </Link>
+            </nav>
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-sm font-medium">{profile?.nome} {profile?.sobrenome}</span>
               <span className="text-xs text-slate-500">{profile?.email}</span>
