@@ -101,7 +101,13 @@ export default function AdminDashboard() {
 
   // Firestore Listeners
   useEffect(() => {
-    const qUsers = query(collection(db, 'usuarios'), orderBy('createdAt', 'desc'));
+    if (!profile?.organizationId) return;
+
+    const qUsers = query(
+      collection(db, 'usuarios'), 
+      where('organizationId', '==', profile.organizationId),
+      orderBy('createdAt', 'desc')
+    );
     const unsubscribeUsers = onSnapshot(qUsers, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -112,7 +118,11 @@ export default function AdminDashboard() {
       console.error("Erro ao buscar usuários:", error);
     });
 
-    const qCampanhas = query(collection(db, 'campanhas'), orderBy('createdAt', 'desc'));
+    const qCampanhas = query(
+      collection(db, 'campanhas'), 
+      where('organizationId', '==', profile.organizationId),
+      orderBy('createdAt', 'desc')
+    );
     const unsubscribeCampanhas = onSnapshot(qCampanhas, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -127,7 +137,7 @@ export default function AdminDashboard() {
       unsubscribeUsers();
       unsubscribeCampanhas();
     };
-  }, []);
+  }, [profile?.organizationId]);
 
   const handleLogout = () => signOut(auth);
 
@@ -571,6 +581,7 @@ function Modal({ title, children, onClose }: { title: string, children: React.Re
 }
 
 function CampanhaForm({ campanha, onSuccess, onError }: { campanha?: Campanha, onSuccess: () => void, onError: (msg: string) => void }) {
+  const { profile } = useAuth();
   const [formData, setFormData] = useState({
     nome: campanha?.nome || '',
     descricao: campanha?.descricao || '',
@@ -614,6 +625,7 @@ function CampanhaForm({ campanha, onSuccess, onError }: { campanha?: Campanha, o
       } else {
         await addDoc(collection(db, 'campanhas'), {
           ...data,
+          organizationId: profile?.organizationId || 'default-org',
           createdAt: serverTimestamp()
         });
         
@@ -748,6 +760,7 @@ function CampanhaForm({ campanha, onSuccess, onError }: { campanha?: Campanha, o
 }
 
 function AddUserForm({ onSuccess, onError }: { onSuccess: () => void, onError: (msg: string) => void }) {
+  const { profile } = useAuth();
   const [formData, setFormData] = useState({
     nome: '',
     sobrenome: '',
@@ -774,6 +787,7 @@ function AddUserForm({ onSuccess, onError }: { onSuccess: () => void, onError: (
         pontos: 0,
         ativo: true,
         role: 'usuario',
+        organizationId: profile?.organizationId || 'default-org',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });

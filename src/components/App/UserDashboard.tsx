@@ -70,6 +70,7 @@ export default function UserDashboard() {
     const qCamps = query(
       collection(db, 'campanhas'),
       where('status', '==', 'ativa'),
+      where('organizationId', '==', profile?.organizationId || 'default-org'),
       orderBy('createdAt', 'desc')
     );
 

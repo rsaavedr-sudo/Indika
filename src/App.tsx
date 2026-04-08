@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-ro
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
+import ChangePassword from './components/Auth/ChangePassword';
 import UserDashboard from './components/App/UserDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import UserDetail from './components/Admin/UserDetail';
@@ -124,7 +125,7 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
 };
 
 function AppRoutes() {
-  const { loading } = useAuth();
+  const { loading, profile, user } = useAuth();
 
   if (loading) {
     return (
@@ -134,12 +135,23 @@ function AppRoutes() {
     );
   }
 
+  // Mandatory Password Change Redirection
+  if (user && profile?.mustChangePassword && window.location.pathname !== '/change-password') {
+    return (
+      <Routes>
+        <Route path="*" element={<Navigate to="/change-password" replace />} />
+        <Route path="/change-password" element={<ChangePassword />} />
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
       {/* Public Routes */}
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/change-password" element={<ChangePassword />} />
 
       {/* User Routes (Temporarily Public) */}
       <Route path="/user" element={<UserDashboard />} />

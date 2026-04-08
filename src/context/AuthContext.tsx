@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, limit, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 interface UserProfile {
@@ -12,6 +12,10 @@ interface UserProfile {
   role: 'admin' | 'usuario';
   pontos: number;
   ativo: boolean;
+  hasAccess?: boolean;
+  mustChangePassword?: boolean;
+  organizationId?: string;
+  lastLoginAt?: any;
 }
 
 interface AuthContextType {
@@ -31,22 +35,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (uid: string) => {
     try {
+      let profileData: UserProfile | null = null;
+      let docId: string | null = null;
+
       // First try direct document fetch (for users registered via Register.tsx)
       const docRef = doc(db, 'usuarios', uid);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        setProfile({ id: docSnap.id, ...docSnap.data() } as UserProfile);
-        return;
+        profileData = docSnap.data() as UserProfile;
+        docId = docSnap.id;
+      } else {
+        // If not found, query by uid field (for users created by admin)
+        const q = query(collection(db, 'usuarios'), where('uid', '==', uid), limit(1));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const userDoc = querySnapshot.docs[0];
+          profileData = userDoc.data() as UserProfile;
+          docId = userDoc.id;
+        }
       }
 
-      // If not found, query by uid field (for users created by admin)
-      const q = query(collection(db, 'usuarios'), where('uid', '==', uid), limit(1));
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0];
-        setProfile({ id: userDoc.id, ...userDoc.data() } as UserProfile);
+      if (profileData && docId) {
+        // Access Control: Block if hasAccess is false (for non-admins)
+        if (profileData.role !== 'admin' && profileData.hasAccess === false) {
+          console.warn("User access is disabled.");
+          setProfile(null);
+          await auth.signOut();
+          return;
+        }
+
+        setProfile({ id: docId, ...profileData });
+
+        // Auditing: Update lastLoginAt
+        await updateDoc(doc(db, 'usuarios', docId), {
+          lastLoginAt: serverTimestamp()
+        });
       } else {
         setProfile(null);
       }

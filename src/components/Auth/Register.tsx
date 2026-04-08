@@ -55,6 +55,8 @@ export default function Register() {
         email: formData.email,
         pontos: 0,
         ativo: true,
+        hasAccess: true,
+        organizationId: 'default-org', // Default organization for self-registered users
         role: 'usuario',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()

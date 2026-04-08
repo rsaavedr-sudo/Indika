@@ -106,7 +106,7 @@ async function startServer() {
 
   // Create Auth User
   app.post("/api/admin/auth/create", async (req, res) => {
-    const { userId, email, password, nome, sobrenome } = req.body;
+    const { userId, email, password, nome, sobrenome, adminEmail, organizationId } = req.body;
     
     if (!firebaseAdminInitialized) {
       return sendError(res, 503, "Firebase Admin not initialized. Please check configuration.");
@@ -116,29 +116,72 @@ async function startServer() {
       return sendError(res, 400, "Dados insuficientes para criar acesso (email, senha e ID do usuário são obrigatórios).");
     }
 
-    try {
-      // Create user in Firebase Auth
-      const userRecord = await admin.auth().createUser({
-        email,
-        password,
-        displayName: `${nome} ${sobrenome}`.trim(),
-        emailVerified: true
-      });
+    let userRecord;
+    let createdNewAuth = false;
 
-      // Update Firestore with the new UID and access metadata
+    try {
       const db = admin.firestore();
-      await db.collection('usuarios').doc(userId).update({
-        uid: userRecord.uid,
-        emailLogin: email,
-        hasAccess: true,
-        accessCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        mustChangePassword: true, // Force password change on first login (optional but recommended)
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
+      const userRef = db.collection('usuarios').doc(userId);
+      const userSnap = await userRef.get();
+
+      if (!userSnap.exists) {
+        return sendError(res, 404, "Usuário não encontrado no Firestore.");
+      }
+
+      const userData = userSnap.data();
+      if (userData?.hasAccess) {
+        return sendError(res, 400, "Este usuário já possui acesso configurado.");
+      }
+
+      // 1. Check if email already exists in Auth
+      try {
+        userRecord = await admin.auth().getUserByEmail(email);
+        
+        // If exists, check if another Firestore user is already using this UID
+        const otherUserQuery = await db.collection('usuarios').where('uid', '==', userRecord.uid).get();
+        if (!otherUserQuery.empty) {
+          return sendError(res, 400, "Este email já está vinculado a outro usuário cadastrado.");
+        }
+        console.log(`Email ${email} already exists in Auth but is not linked. Linking to user ${userId}.`);
+      } catch (authError: any) {
+        if (authError.code === 'auth/user-not-found') {
+          // 2. Create user in Firebase Auth if not exists
+          userRecord = await admin.auth().createUser({
+            email,
+            password,
+            displayName: `${nome} ${sobrenome}`.trim(),
+            emailVerified: true
+          });
+          createdNewAuth = true;
+        } else {
+          throw authError;
+        }
+      }
+
+      // 3. Update Firestore with the new UID and access metadata
+      try {
+        await userRef.update({
+          uid: userRecord.uid,
+          emailLogin: email,
+          hasAccess: true,
+          accessCreatedBy: adminEmail || 'admin@indika.com',
+          accessCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          mustChangePassword: true,
+          organizationId: organizationId || 'default-org',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (firestoreError) {
+        // ROLLBACK: If Firestore fails, delete the Auth user we just created
+        if (createdNewAuth && userRecord) {
+          console.error("Firestore update failed. Rolling back Auth user creation.");
+          await admin.auth().deleteUser(userRecord.uid);
+        }
+        throw firestoreError;
+      }
 
       res.json({ success: true, uid: userRecord.uid });
     } catch (error: any) {
-      console.error("Error creating auth user:", error);
+      console.error("Error in production auth creation:", error);
       let message = error.message;
       if (error.code === 'auth/email-already-exists') {
         message = "Este email já está em uso por outra conta.";

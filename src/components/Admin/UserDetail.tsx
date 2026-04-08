@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { 
   Trophy,
   ArrowLeft, 
@@ -81,6 +82,7 @@ interface Campanha {
 export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { profile: adminProfile } = useAuth();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -209,7 +211,9 @@ export default function UserDetail() {
           email: authForm.email,
           password: authForm.password,
           nome: usuario.nome,
-          sobrenome: usuario.sobrenome
+          sobrenome: usuario.sobrenome,
+          adminEmail: adminProfile?.email,
+          organizationId: adminProfile?.organizationId || 'default-org'
         })
       });
       
@@ -808,6 +812,7 @@ function Modal({ title, children, onClose }: { title: string, children: React.Re
 }
 
 function ManagePointsForm({ usuario, onSuccess, onError }: { usuario: Usuario, onSuccess: () => void, onError: (msg: string) => void }) {
+  const { profile: adminProfile } = useAuth();
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [formData, setFormData] = useState({
     pontos: '',
@@ -875,6 +880,7 @@ function ManagePointsForm({ usuario, onSuccess, onError }: { usuario: Usuario, o
         tipo: formData.tipo,
         origem: formData.origem,
         descricao: formData.descricao,
+        organizationId: adminProfile?.organizationId || 'default-org',
         createdAt: serverTimestamp(),
         adminEmail: auth.currentUser?.email || 'admin@indika.com',
         saldoAnterior,
