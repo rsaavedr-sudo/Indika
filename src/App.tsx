@@ -7,6 +7,8 @@ import ChangePassword from './components/Auth/ChangePassword';
 import UserDashboard from './components/App/UserDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import UserDetail from './components/Admin/UserDetail';
+import CampaignDetail from './components/Admin/CampaignDetail';
+import CompraPontos from './components/Admin/CompraPontos';
 import { Loader2, LayoutDashboard, User, Settings, LogOut } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from './firebase';
@@ -116,7 +118,8 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && profile?.role !== requiredRole) {
+  // Admins are superusers — they can access any protected route
+  if (requiredRole && profile?.role !== requiredRole && profile?.role !== 'admin') {
     // Redirect to Home if they have the wrong role, instead of cross-redirecting
     return <Navigate to="/" replace />;
   }
@@ -153,12 +156,14 @@ function AppRoutes() {
       <Route path="/register" element={<Register />} />
       <Route path="/change-password" element={<ChangePassword />} />
 
-      {/* User Routes (Temporarily Public) */}
-      <Route path="/user" element={<UserDashboard />} />
+      {/* User Routes */}
+      <Route path="/user" element={<ProtectedRoute requiredRole="usuario"><UserDashboard /></ProtectedRoute>} />
 
-      {/* Admin Routes (Temporarily Public) */}
-      <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/admin/usuarios/:id" element={<UserDetail />} />
+      {/* Admin Routes */}
+      <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/usuarios/:id" element={<ProtectedRoute requiredRole="admin"><UserDetail /></ProtectedRoute>} />
+      <Route path="/admin/campanhas/:id" element={<ProtectedRoute requiredRole="admin"><CampaignDetail /></ProtectedRoute>} />
+      <Route path="/admin/comprar-pontos" element={<ProtectedRoute requiredRole="admin"><CompraPontos /></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

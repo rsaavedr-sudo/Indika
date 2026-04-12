@@ -1,10 +1,10 @@
 {
-  "apiKey": "PLACEHOLDER",
-  "authDomain": "PLACEHOLDER",
-  "projectId": "PLACEHOLDER",
-  "storageBucket": "PLACEHOLDER",
-  "messagingSenderId": "PLACEHOLDER",
-  "appId": "PLACEHOLDER",
-  "measurementId": "PLACEHOLDER",
+  "apiKey": "AIzaSyBidf32LKSRFYyQ2wd8I3ekYX3mwzTs-ig",
+  "authDomain": "indika-985c9.firebaseapp.com",
+  "projectId": "indika-985c9",
+  "storageBucket": "indika-985c9.firebasestorage.app",
+  "messagingSenderId": "24647553921",
+  "appId": "1:24647553921:web:121dab6b82cd2531e7ce80",
+  "measurementId": "G-760ERZBEKC",
   "firestoreDatabaseId": "(default)"
 }

@@ -1,8 +1,33 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 build/
 dist/
+
+# Test coverage
 coverage/
+
+# OS / IDE
 .DS_Store
 *.log
-.env*
+.idea/
+.vscode/
+
+# Environment variables — NEVER subir al repo
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 !.env.example
+
+# Firebase Admin SDK — credencial privada del servidor, NUNCA al repo
+*-firebase-adminsdk-*.json
+*.serviceAccountKey.json
+
+# Storage rules (gestionado por Firebase CLI, no necesario en repo)
+storage.rules
+
+# Backup files
+*.bak

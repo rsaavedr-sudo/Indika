@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../firebase';
 import { motion } from 'motion/react';
@@ -56,16 +56,17 @@ export default function Register() {
         pontos: 0,
         ativo: true,
         hasAccess: true,
-        organizationId: 'default-org', // Default organization for self-registered users
+        organizationId: 'default-org',
         role: 'usuario',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
+      // Send verification email
+      await sendEmailVerification(user);
+
       setSuccess(true);
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
+      // Don't auto-redirect — user needs to check email first
     } catch (err: any) {
       console.error("Registration error:", err);
       if (err.code === 'auth/email-already-in-use') {
@@ -103,13 +104,26 @@ export default function Register() {
         )}
 
         {success && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-100 text-green-700 rounded-xl flex items-center gap-3 text-sm">
-            <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-            Conta criada com sucesso! Redirecionando...
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl space-y-3">
+            <div className="flex items-center gap-2 text-green-700 font-semibold text-sm">
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+              Conta criada com sucesso!
+            </div>
+            <p className="text-green-700 text-sm leading-relaxed">
+              Enviamos um <strong>email de verificação</strong> para <strong>{formData.email}</strong>.<br />
+              Verifique sua caixa de entrada (e a pasta de spam) e clique no link para ativar sua conta.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="w-full mt-1 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl text-sm transition-colors"
+            >
+              Ir para o Login →
+            </button>
           </div>
         )}
 
-        <form onSubmit={handleRegister} className="space-y-4">
+        {!success && <form onSubmit={handleRegister} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1 ml-1">Nome</label>
@@ -213,16 +227,16 @@ export default function Register() {
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Criar Conta'}
           </button>
-        </form>
+        </form>}
 
-        <div className="mt-8 text-center">
+        {!success && <div className="mt-8 text-center">
           <p className="text-sm text-slate-500">
             Já tem uma conta?{' '}
             <Link to="/login" className="text-indigo-600 font-semibold hover:underline">
               Entre aqui
             </Link>
           </p>
-        </div>
+        </div>}
       </motion.div>
     </div>
   );

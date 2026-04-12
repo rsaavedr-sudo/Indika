@@ -1,45 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  Edit2, 
-  CheckCircle2, 
-  XCircle, 
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Users,
+  Plus,
+  Search,
+  Edit2,
+  CheckCircle2,
+  XCircle,
   Trophy,
-  LogOut,
   UserPlus,
   Loader2,
-  History,
-  ArrowUpCircle,
-  ArrowDownCircle,
   Calendar,
   Megaphone,
   Tag,
-  Settings,
-  User
+  Eye,
+  Building2,
+  AlertCircle,
+  Filter,
+  ChevronRight,
+  ImageIcon,
+  Upload,
+  X,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  collection, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  query, 
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  doc,
+  query,
   orderBy,
   where,
   serverTimestamp,
   Timestamp,
-  writeBatch
 } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
-import { db, auth } from '../../firebase';
+import { db } from '../../firebase';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
+import AdminLayout, { AdminSection } from './AdminLayout';
+import FaixasConfig from './FaixasConfig';
+import MissoesAdmin from './MissoesAdmin';
 
-// Types
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface Usuario {
   id: string;
   nome: string;
@@ -53,144 +57,158 @@ interface Usuario {
   createdAt: Timestamp;
 }
 
-interface TransacaoPonto {
-  id: string;
-  userId: string;
-  pontos: number;
-  tipo: 'credito' | 'debito';
-  origem: 'manual' | 'campanha' | 'bonus' | 'resgate';
-  descricao: string;
-  createdAt: Timestamp;
-  adminEmail?: string;
-  saldoAnterior: number;
-  saldoNovo: number;
-}
-
 interface Campanha {
   id: string;
   nome: string;
   descricao: string;
-  pontos: number;
-  status: 'ativa' | 'inativa';
-  tipo: 'indicacao' | 'acao_manual' | 'bonus' | 'promocional';
+  empresa?: string;
+  tipo_campanha?: string;
+  tipo?: string;
+  pontos_tier1?: number;
+  pontos?: number;
+  meta_tier1?: string;
+  pontos_tier2?: number;
+  meta_tier2?: string;
+  pontos_tier3?: number;
+  meta_tier3?: string;
+  limite_por_usuario?: number;
+  limite_total?: number;
+  atribuicao?: 'todos' | 'especificos' | 'grupos';
+  notas_internas?: string;
+  imagemUrl?: string;
+  status: 'rascunho' | 'ativa' | 'pausada' | 'finalizada' | 'inativa';
   dataInicio: Timestamp;
   dataFim: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  organizationId: string;
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const STATUS_LABELS: Record<string, string> = {
+  rascunho: 'Rascunho',
+  ativa: 'Ativa',
+  pausada: 'Pausada',
+  finalizada: 'Finalizada',
+  inativa: 'Inativa',
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  rascunho: 'bg-stone-100 text-zinc-500',
+  ativa: 'bg-green-50 text-green-700',
+  pausada: 'bg-amber-50 text-amber-700',
+  finalizada: 'bg-stone-50 text-blue-700',
+  inativa: 'bg-stone-100 text-zinc-500',
+};
+
+const TIPO_LABELS: Record<string, string> = {
+  indicacao: 'Indicação',
+  venda_direta: 'Venda Direta',
+  ativacao: 'Ativação',
+  retencao: 'Retenção',
+  acao_manual: 'Ação Manual',
+  bonus: 'Bônus',
+  promocional: 'Promocional',
+};
+
+function effectivePontos(c: Campanha) { return c.pontos_tier1 ?? c.pontos ?? 0; }
+function effectiveTipo(c: Campanha)   { return c.tipo_campanha || c.tipo || ''; }
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'usuarios' | 'campanhas'>('usuarios');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = (searchParams.get('tab') as 'usuarios' | 'campanhas' | 'faixas' | 'missoes') || 'usuarios';
+
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAddCampanhaModalOpen, setIsAddCampanhaModalOpen] = useState(false);
-  const [isEditCampanhaModalOpen, setIsEditCampanhaModalOpen] = useState(false);
-  const [editingCampanha, setEditingCampanha] = useState<Campanha | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('todos');
+  const [tipoFilter, setTipoFilter] = useState<string>('todos');
 
-  // Toast auto-hide
+  const setTab = (tab: 'usuarios' | 'campanhas' | 'faixas' | 'missoes') => {
+    setSearchParams({ tab });
+    setSearchTerm('');
+  };
+
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(() => setToast(null), 3000);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(t);
     }
   }, [toast]);
 
-  // Firestore Listeners
   useEffect(() => {
     if (!profile?.organizationId) return;
 
     const qUsers = query(
-      collection(db, 'usuarios'), 
+      collection(db, 'usuarios'),
       where('organizationId', '==', profile.organizationId),
       orderBy('createdAt', 'desc')
     );
-    const unsubscribeUsers = onSnapshot(qUsers, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Usuario[];
-      setUsuarios(docs);
-    }, (error) => {
-      console.error("Erro ao buscar usuários:", error);
+    const unsubUsers = onSnapshot(qUsers, (snap) => {
+      setUsuarios(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Usuario[]);
     });
 
-    const qCampanhas = query(
-      collection(db, 'campanhas'), 
+    const qCamps = query(
+      collection(db, 'campanhas'),
       where('organizationId', '==', profile.organizationId),
       orderBy('createdAt', 'desc')
     );
-    const unsubscribeCampanhas = onSnapshot(qCampanhas, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Campanha[];
-      setCampanhas(docs);
-    }, (error) => {
-      console.error("Erro ao buscar campanhas:", error);
+    const unsubCamps = onSnapshot(qCamps, (snap) => {
+      setCampanhas(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Campanha[]);
     });
 
-    return () => {
-      unsubscribeUsers();
-      unsubscribeCampanhas();
-    };
+    return () => { unsubUsers(); unsubCamps(); };
   }, [profile?.organizationId]);
 
-  const handleLogout = () => signOut(auth);
-
-  const toggleCampanhaStatus = async (campanha: Campanha) => {
+  const toggleUserStatus = async (u: Usuario) => {
     try {
-      await updateDoc(doc(db, 'campanhas', campanha.id), {
-        status: campanha.status === 'ativa' ? 'inativa' : 'ativa',
-        updatedAt: serverTimestamp()
-      });
-      setToast({ 
-        type: 'success', 
-        text: `Campanha ${campanha.status === 'ativa' ? 'desativada' : 'ativada'} com sucesso!` 
-      });
-    } catch (error) {
-      console.error("Erro ao atualizar status da campanha:", error);
-      setToast({ type: 'error', text: 'Erro ao atualizar status da campanha.' });
-    }
+      await updateDoc(doc(db, 'usuarios', u.id), { ativo: !u.ativo, updatedAt: serverTimestamp() });
+    } catch (e) { console.error(e); }
   };
 
-  const toggleUserStatus = async (usuario: Usuario) => {
-    try {
-      await updateDoc(doc(db, 'usuarios', usuario.id), {
-        ativo: !usuario.ativo,
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error("Erro ao atualizar status:", error);
-    }
-  };
-
-  const filteredUsers = usuarios.filter(u => 
+  const filteredUsers = usuarios.filter(u =>
     `${u.nome} ${u.sobrenome}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.cpf.includes(searchTerm)
   );
 
-  const filteredCampanhas = campanhas.filter(c => 
-    c.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.descricao.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCampanhas = campanhas.filter(c => {
+    const matchSearch =
+      c.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.descricao || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.empresa || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchStatus = statusFilter === 'todos' || c.status === statusFilter;
+    const matchTipo   = tipoFilter === 'todos'   || effectiveTipo(c) === tipoFilter;
+    return matchSearch && matchStatus && matchTipo;
+  });
+
+  const availableTipos: string[] = Array.from(
+    new Set(campanhas.map(c => effectiveTipo(c)).filter(Boolean) as string[])
   );
 
+  const activeSection = (['campanhas', 'faixas', 'missoes', 'comprar-pontos'].includes(activeTab)
+    ? activeTab
+    : 'usuarios') as AdminSection;
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Toast Notification */}
+    <AdminLayout activeSection={activeSection}>
+      {/* Toast */}
       <AnimatePresence>
         {toast && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 50, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: 20, x: '-50%' }}
             className={cn(
-              "fixed bottom-8 left-1/2 z-50 px-6 py-3 rounded-2xl shadow-2xl font-semibold flex items-center gap-3 min-w-[320px] justify-center",
-              toast.type === 'success' ? "bg-indigo-600 text-white" : "bg-red-600 text-white"
+              'fixed bottom-8 left-1/2 z-50 px-6 py-3 rounded-2xl shadow-2xl font-semibold flex items-center gap-3 min-w-[320px] justify-center',
+              toast.type === 'success' ? 'bg-zinc-900 text-white' : 'bg-red-600 text-white'
             )}
           >
             {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
@@ -199,196 +217,167 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
-              <Users className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Indika Admin</h1>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <nav className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl mr-4">
-              <Link 
-                to="/admin"
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  "bg-white text-indigo-600 shadow-sm"
-                )}
-              >
-                <Settings className="w-4 h-4" />
-                Admin
-              </Link>
-              <Link 
-                to="/user"
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                <User className="w-4 h-4" />
-                Usuário
-              </Link>
-            </nav>
-            <nav className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl mr-4">
-              <button 
-                onClick={() => setActiveTab('usuarios')}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  activeTab === 'usuarios' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                <Users className="w-4 h-4" />
-                Usuários
-              </button>
-              <button 
-                onClick={() => setActiveTab('campanhas')}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  activeTab === 'campanhas' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                <Megaphone className="w-4 h-4" />
-                Campanhas
-              </button>
-            </nav>
-            <div className="hidden sm:flex flex-col items-end">
-              <span className="text-sm font-medium">{profile?.nome} {profile?.sobrenome}</span>
-              <span className="text-xs text-slate-500">{profile?.email}</span>
-            </div>
-            <button 
-              onClick={handleLogout}
-              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-              title="Sair"
+      {/* Top bar */}
+      <div className="bg-white border-b border-stone-200 px-8 h-16 flex items-center justify-between sticky top-0 z-10">
+        <div>
+          <h1 className="text-lg font-bold text-zinc-900">
+            {activeTab === 'usuarios' ? 'Usuários'
+              : activeTab === 'campanhas' ? 'Campanhas'
+              : activeTab === 'missoes' ? 'Missões'
+              : 'Faixas'}
+          </h1>
+          <p className="text-xs text-zinc-400">
+            {activeTab === 'usuarios'
+              ? `${usuarios.length} cadastrados · ${usuarios.filter(u => u.ativo).length} ativos`
+              : activeTab === 'campanhas'
+              ? `${campanhas.length} campanhas · ${campanhas.filter(c => c.status === 'ativa').length} ativas`
+              : activeTab === 'missoes'
+              ? 'Gerencie as missões da plataforma'
+              : 'Configure os níveis de pontuação'}
+          </p>
+        </div>
+        {/* Tab switcher */}
+        <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl">
+          {([
+            { id: 'usuarios',  label: 'Usuários',  icon: <Users className="w-4 h-4" /> },
+            { id: 'campanhas', label: 'Campanhas', icon: <Megaphone className="w-4 h-4" /> },
+            { id: 'missoes',   label: 'Missões',   icon: <span className="w-4 h-4 inline-flex items-center justify-center text-sm">🎯</span> },
+            { id: 'faixas',    label: 'Faixas',    icon: <span className="w-4 h-4 inline-flex items-center justify-center text-sm">🛡️</span> },
+          ] as const).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setTab(tab.id)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
+                activeTab === tab.id ? 'bg-white text-amber-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
+              )}
             >
-              <LogOut className="w-5 h-5" />
+              {tab.icon} {tab.label}
             </button>
-          </div>
+          ))}
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Dashboard Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Users className="w-5 h-5 text-blue-600" />
-              </div>
-              <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">Total</span>
-            </div>
-            <div className="text-2xl font-bold">{usuarios.length}</div>
-            <div className="text-sm text-slate-500">Usuários cadastrados</div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <CheckCircle2 className="w-5 h-5 text-green-600" />
-              </div>
-              <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Ativos</span>
-            </div>
-            <div className="text-2xl font-bold">{usuarios.filter(u => u.ativo).length}</div>
-            <div className="text-sm text-slate-500">Contas em operação</div>
-          </div>
+      <main className="px-8 py-6 max-w-7xl">
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-amber-50 rounded-lg">
-                <Trophy className="w-5 h-5 text-amber-600" />
-              </div>
-              <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full">Pontos</span>
-            </div>
-            <div className="text-2xl font-bold">
-              {usuarios.reduce((acc, curr) => acc + (curr.pontos || 0), 0).toLocaleString()}
-            </div>
-            <div className="text-sm text-slate-500">Total de pontos distribuídos</div>
-          </div>
+        {/* ── Faixas tab ── */}
+        {activeTab === 'faixas' && <FaixasConfig />}
+
+        {/* ── Missões tab ── */}
+        {activeTab === 'missoes' && <MissoesAdmin />}
+
+        {/* ── Stats (only for usuarios / campanhas) ── */}
+        {(activeTab === 'usuarios' || activeTab === 'campanhas') && (<>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+          {activeTab === 'usuarios' ? (
+            <>
+              <StatCard icon={<Users className="w-5 h-5 text-amber-600" />} bg="bg-stone-50" label="Total cadastrados" value={usuarios.length} />
+              <StatCard icon={<CheckCircle2 className="w-5 h-5 text-green-600" />} bg="bg-green-50" label="Contas ativas" value={usuarios.filter(u => u.ativo).length} />
+              <StatCard icon={<Trophy className="w-5 h-5 text-amber-600" />} bg="bg-amber-50" label="Total de pontos" value={usuarios.reduce((s, u) => s + (u.pontos || 0), 0)} />
+            </>
+          ) : (
+            <>
+              <StatCard icon={<CheckCircle2 className="w-5 h-5 text-green-600" />} bg="bg-green-50" label="Ativas" value={campanhas.filter(c => c.status === 'ativa').length} />
+              <StatCard icon={<Megaphone className="w-5 h-5 text-amber-600" />} bg="bg-amber-50" label="Total campanhas" value={campanhas.length} />
+              <StatCard icon={<XCircle className="w-5 h-5 text-zinc-400" />} bg="bg-stone-100" label="Pausadas / Finalizadas" value={campanhas.filter(c => c.status === 'pausada' || c.status === 'finalizada').length} />
+            </>
+          )}
         </div>
 
-        {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center justify-between">
-          <div className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text"
-              placeholder={activeTab === 'usuarios' ? "Buscar por nome, email ou CPF..." : "Buscar campanhas..."}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-5 items-start sm:items-center justify-between">
+          <div className="flex items-center gap-2 flex-1 flex-wrap">
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+              <input
+                type="text"
+                placeholder={activeTab === 'usuarios' ? 'Buscar nome, email ou CPF...' : 'Buscar campanhas...'}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
+            {activeTab === 'campanhas' && (
+              <div className="flex items-center gap-2">
+                <Filter className="w-3 h-3 text-zinc-400" />
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                  className="text-xs border border-stone-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-zinc-600">
+                  <option value="todos">Todos Status</option>
+                  <option value="rascunho">Rascunho</option>
+                  <option value="ativa">Ativa</option>
+                  <option value="pausada">Pausada</option>
+                  <option value="finalizada">Finalizada</option>
+                  <option value="inativa">Inativa</option>
+                </select>
+                {availableTipos.length > 0 && (
+                  <select value={tipoFilter} onChange={e => setTipoFilter(e.target.value)}
+                    className="text-xs border border-stone-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-zinc-600">
+                    <option value="todos">Todos Tipos</option>
+                    {availableTipos.map(t => <option key={t} value={t}>{TIPO_LABELS[t] || t}</option>)}
+                  </select>
+                )}
+              </div>
+            )}
           </div>
-          
-          <button 
+          <button
             onClick={() => activeTab === 'usuarios' ? setIsAddModalOpen(true) : setIsAddCampanhaModalOpen(true)}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-xl transition-all shadow-lg shadow-indigo-200"
+            className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-700 text-white font-medium py-2 px-5 rounded-xl shadow-lg shadow-zinc-200 text-sm transition-all"
           >
             {activeTab === 'usuarios' ? <UserPlus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {activeTab === 'usuarios' ? 'Novo Usuário' : 'Nova Campanha'}
           </button>
         </div>
 
+        {/* Tables */}
         {activeTab === 'usuarios' ? (
-          /* Users Table */
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-200">
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Usuário</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">CPF / CEP</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Pontos</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</th>
+                  <tr className="bg-stone-50/70 border-b border-stone-200">
+                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Usuário</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">CPF / CEP</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Pontos</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {filteredUsers.map((usuario) => (
-                    <tr key={usuario.id} className="hover:bg-slate-50/50 transition-colors group">
+                <tbody className="divide-y divide-slate-100">
+                  {filteredUsers.map(u => (
+                    <tr key={u.id} className="hover:bg-stone-50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
-                            {usuario.nome[0]}{usuario.sobrenome[0]}
+                          <div className="w-9 h-9 rounded-full bg-zinc-900 flex items-center justify-center text-amber-400 font-bold text-sm">
+                            {u.nome[0]}{u.sobrenome[0]}
                           </div>
-                          <Link to={`/admin/usuarios/${usuario.id}`} className="hover:opacity-80 transition-opacity">
-                            <div className="font-semibold text-slate-900">{usuario.nome} {usuario.sobrenome}</div>
-                            <div className="text-xs text-slate-500">{usuario.email}</div>
+                          <Link to={`/admin/usuarios/${u.id}`} className="hover:opacity-80 transition-opacity">
+                            <div className="font-semibold text-zinc-900 text-sm">{u.nome} {u.sobrenome}</div>
+                            <div className="text-xs text-zinc-400">{u.email}</div>
                           </Link>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-slate-700">{usuario.cpf}</div>
-                        <div className="text-xs text-slate-400">{usuario.cep || 'N/A'}</div>
+                        <div className="text-sm text-zinc-700">{u.cpf}</div>
+                        <div className="text-xs text-zinc-400">{u.cep || '—'}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <button 
-                          onClick={() => toggleUserStatus(usuario)}
-                          className={cn(
-                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
-                            usuario.ativo 
-                              ? "bg-green-50 text-green-700 hover:bg-green-100" 
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          )}
-                        >
-                          {usuario.ativo ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                          {usuario.ativo ? 'Ativo' : 'Inativo'}
+                        <button onClick={() => toggleUserStatus(u)}
+                          className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                            u.ativo ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-stone-100 text-zinc-600 hover:bg-slate-200')}>
+                          {u.ativo ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          {u.ativo ? 'Ativo' : 'Inativo'}
                         </button>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <Trophy className="w-4 h-4 text-amber-500" />
-                          <span className="font-bold text-slate-900">{usuario.pontos || 0}</span>
+                          <span className="font-bold text-zinc-900">{u.pontos || 0}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Link 
-                            to={`/admin/usuarios/${usuario.id}`}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Ver Ficha Completa"
-                          >
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Link to={`/admin/usuarios/${u.id}`}
+                            className="p-2 text-amber-600 hover:bg-stone-50 rounded-lg transition-colors inline-flex">
                             <Edit2 className="w-4 h-4" />
                           </Link>
                         </div>
@@ -396,506 +385,490 @@ export default function AdminDashboard() {
                     </tr>
                   ))}
                   {filteredUsers.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                        Nenhum usuário encontrado.
-                      </td>
-                    </tr>
+                    <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-400">Nenhum usuário encontrado.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
           </div>
         ) : (
-          /* Campaigns Table */
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-3 border-b border-stone-100 flex items-center justify-between">
+              <span className="text-xs text-zinc-500">{filteredCampanhas.length} campanha{filteredCampanhas.length !== 1 ? 's' : ''}</span>
+              <div className="flex gap-2">
+                {(['ativa', 'pausada', 'finalizada'] as const).map(s => {
+                  const count = campanhas.filter(c => c.status === s).length;
+                  return count > 0 ? (
+                    <span key={s} className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold', STATUS_STYLES[s])}>
+                      {STATUS_LABELS[s]}: {count}
+                    </span>
+                  ) : null;
+                })}
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-200">
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Campanha</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipo / Pontos</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Período</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</th>
+                  <tr className="bg-stone-50/70 border-b border-stone-200">
+                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Campanha</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tipo / Pontos</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Período</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {filteredCampanhas.map((campanha) => (
-                    <tr key={campanha.id} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-                            <Megaphone className="w-5 h-5" />
+                <tbody className="divide-y divide-slate-100">
+                  {filteredCampanhas.map(c => {
+                    const tipo   = effectiveTipo(c);
+                    const pontos = effectivePontos(c);
+                    return (
+                      <tr key={c.id} className="hover:bg-stone-50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {c.imagemUrl ? (
+                              <img src={c.imagemUrl} alt={c.nome}
+                                className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-stone-100" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 flex-shrink-0">
+                                <Megaphone className="w-5 h-5" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="font-semibold text-zinc-900 text-sm">{c.nome}</div>
+                              {c.empresa
+                                ? <div className="text-xs text-zinc-400 flex items-center gap-1"><Building2 className="w-3 h-3" />{c.empresa}</div>
+                                : <div className="text-xs text-zinc-400 truncate max-w-[200px]">{c.descricao}</div>}
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-semibold text-slate-900">{campanha.nome}</div>
-                            <div className="text-xs text-slate-500 truncate max-w-[200px]">{campanha.descricao}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase mb-1">
-                          <Tag className="w-3 h-3" />
-                          {campanha.tipo}
-                        </div>
-                        <div className="text-sm font-bold text-indigo-600">{campanha.pontos} pts</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-xs text-slate-700 flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-slate-400" />
-                          {campanha.dataInicio?.toDate().toLocaleDateString('pt-BR')}
-                        </div>
-                        <div className="text-xs text-slate-400">até {campanha.dataFim?.toDate().toLocaleDateString('pt-BR')}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button 
-                          onClick={() => toggleCampanhaStatus(campanha)}
-                          className={cn(
-                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
-                            campanha.status === 'ativa' 
-                              ? "bg-green-50 text-green-700 hover:bg-green-100" 
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        </td>
+                        <td className="px-6 py-4">
+                          {tipo && (
+                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-stone-100 text-zinc-600 text-[10px] font-bold uppercase mb-1">
+                              <Tag className="w-3 h-3" />{TIPO_LABELS[tipo] || tipo}
+                            </div>
                           )}
-                        >
-                          {campanha.status === 'ativa' ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                          {campanha.status === 'ativa' ? 'Ativa' : 'Inativa'}
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => {
-                              setEditingCampanha(campanha);
-                              setIsEditCampanhaModalOpen(true);
-                            }}
-                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                            title="Editar Campanha"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                          <div className="text-sm font-bold text-amber-600">
+                            {pontos} pts
+                            {c.pontos_tier2 ? <span className="text-zinc-400 font-normal"> / {c.pontos_tier2}{c.pontos_tier3 ? ` / ${c.pontos_tier3}` : ''}</span> : ''}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-xs text-zinc-700 flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-zinc-400" />
+                            {c.dataInicio?.toDate?.().toLocaleDateString('pt-BR') || '—'}
+                          </div>
+                          <div className="text-xs text-zinc-400">até {c.dataFim?.toDate?.().toLocaleDateString('pt-BR') || '—'}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
+                            STATUS_STYLES[c.status] || 'bg-stone-100 text-zinc-500')}>
+                            {c.status === 'ativa' ? <CheckCircle2 className="w-3 h-3" /> :
+                             c.status === 'pausada' ? <XCircle className="w-3 h-3" /> : null}
+                            {STATUS_LABELS[c.status] || c.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <Link to={`/admin/campanhas/${c.id}`}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-stone-50 rounded-lg border border-stone-200 hover:border-stone-300 transition-colors inline-flex ml-auto">
+                            <Eye className="w-3.5 h-3.5" />Detalhes<ChevronRight className="w-3 h-3" />
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {filteredCampanhas.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                        Nenhuma campanha encontrada.
-                      </td>
-                    </tr>
+                    <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-400">Nenhuma campanha encontrada.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
+        </>)}
       </main>
 
-      {/* Add User Modal */}
+      {/* Modals */}
       <AnimatePresence>
         {isAddModalOpen && (
           <Modal title="Novo Usuário" onClose={() => setIsAddModalOpen(false)}>
-            <AddUserForm 
-              onSuccess={() => {
-                setIsAddModalOpen(false);
-                setToast({ type: 'success', text: 'Usuário criado com sucesso!' });
-              }} 
-              onError={(err) => setToast({ type: 'error', text: err })}
+            <AddUserForm
+              onSuccess={() => { setIsAddModalOpen(false); setToast({ type: 'success', text: 'Usuário criado com sucesso!' }); }}
+              onError={err => setToast({ type: 'error', text: err })}
             />
           </Modal>
         )}
       </AnimatePresence>
-
-      {/* Add Campanha Modal */}
       <AnimatePresence>
         {isAddCampanhaModalOpen && (
-          <Modal title="Nova Campanha" onClose={() => setIsAddCampanhaModalOpen(false)}>
-            <CampanhaForm 
-              onSuccess={() => {
-                setIsAddCampanhaModalOpen(false);
-                setToast({ type: 'success', text: 'Campanha criada com sucesso!' });
-              }}
-              onError={(err) => setToast({ type: 'error', text: err })}
+          <Modal title="Nova Campanha" onClose={() => setIsAddCampanhaModalOpen(false)} wide>
+            <CampanhaCreateForm
+              onSuccess={() => { setIsAddCampanhaModalOpen(false); setToast({ type: 'success', text: 'Campanha criada com sucesso!' }); }}
+              onError={err => setToast({ type: 'error', text: err })}
             />
           </Modal>
         )}
       </AnimatePresence>
+    </AdminLayout>
+  );
+}
 
-      {/* Edit Campanha Modal */}
-      <AnimatePresence>
-        {isEditCampanhaModalOpen && editingCampanha && (
-          <Modal title={`Editar Campanha: ${editingCampanha.nome}`} onClose={() => {
-            setIsEditCampanhaModalOpen(false);
-            setEditingCampanha(null);
-          }}>
-            <CampanhaForm 
-              campanha={editingCampanha}
-              onSuccess={() => {
-                setIsEditCampanhaModalOpen(false);
-                setEditingCampanha(null);
-                setToast({ type: 'success', text: 'Campanha atualizada com sucesso!' });
-              }}
-              onError={(err) => setToast({ type: 'error', text: err })}
-            />
-          </Modal>
-        )}
-      </AnimatePresence>
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+
+function StatCard({ icon, bg, label, value }: { icon: React.ReactNode; bg: string; label: string; value: number }) {
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-3', bg)}>{icon}</div>
+      <div className="text-2xl font-bold">{value.toLocaleString()}</div>
+      <div className="text-sm text-zinc-500">{label}</div>
     </div>
   );
 }
 
-function Modal({ title, children, onClose }: { title: string, children: React.ReactNode, onClose: () => void }) {
+// ─── Modal ────────────────────────────────────────────────────────────────────
+
+function Modal({ title, children, onClose, wide }: { title: string; children: React.ReactNode; onClose: () => void; wide?: boolean }) {
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-    >
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-      />
-      <motion.div 
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+      <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden"
+        className={cn('relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col',
+          wide ? 'max-w-2xl' : 'max-w-lg')}
       >
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <XCircle className="w-5 h-5 text-slate-400" />
+        <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between flex-shrink-0">
+          <h3 className="text-lg font-bold text-zinc-900">{title}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-lg transition-colors">
+            <XCircle className="w-5 h-5 text-zinc-400" />
           </button>
         </div>
-        <div className="p-6">
-          {children}
-        </div>
+        <div className="p-6 overflow-y-auto">{children}</div>
       </motion.div>
     </motion.div>
   );
 }
 
-function CampanhaForm({ campanha, onSuccess, onError }: { campanha?: Campanha, onSuccess: () => void, onError: (msg: string) => void }) {
+// ─── Add User Form ────────────────────────────────────────────────────────────
+
+function AddUserForm({ onSuccess, onError }: { onSuccess: () => void; onError: (msg: string) => void }) {
   const { profile } = useAuth();
-  const [formData, setFormData] = useState({
-    nome: campanha?.nome || '',
-    descricao: campanha?.descricao || '',
-    pontos: campanha?.pontos?.toString() || '',
-    status: campanha?.status || 'ativa',
-    tipo: campanha?.tipo || 'promocional',
-    dataInicio: campanha?.dataInicio ? campanha.dataInicio.toDate().toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    dataFim: campanha?.dataFim ? campanha.dataFim.toDate().toISOString().split('T')[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  });
+  const [form, setForm] = useState({ nome: '', sobrenome: '', cpf: '', cep: '', email: '', idade: '', pontos: '0' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const s = (f: string, v: string) => setForm(p => ({ ...p, [f]: v }));
+  const inp = 'w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none text-sm';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
-    
-    if (Number(formData.pontos) <= 0) {
-      setError('Os pontos devem ser maiores que 0.');
-      return;
-    }
-    if (new Date(formData.dataFim) < new Date(formData.dataInicio)) {
-      setError('A data de fim não pode ser menor que a data de início.');
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
-    let success = false;
-
+    setSubmitting(true); setError(null);
     try {
-      const data = {
-        ...formData,
-        pontos: Number(formData.pontos),
-        dataInicio: Timestamp.fromDate(new Date(formData.dataInicio)),
-        dataFim: Timestamp.fromDate(new Date(formData.dataFim)),
-        updatedAt: serverTimestamp()
-      };
-
-      if (campanha) {
-        await updateDoc(doc(db, 'campanhas', campanha.id), data);
-      } else {
-        await addDoc(collection(db, 'campanhas'), {
-          ...data,
-          organizationId: profile?.organizationId || 'default-org',
-          createdAt: serverTimestamp()
-        });
-        
-        setFormData({
-          nome: '',
-          descricao: '',
-          pontos: '',
-          status: 'ativa',
-          tipo: 'promocional',
-          dataInicio: new Date().toISOString().split('T')[0],
-          dataFim: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        });
-      }
-      success = true;
-    } catch (err) {
-      console.error("Erro ao salvar campanha:", err);
-      const msg = 'Erro ao salvar campanha. Tente novamente.';
-      setError(msg);
-      onError(msg);
-    } finally {
-      setSubmitting(false);
-    }
-
-    if (success) {
+      await addDoc(collection(db, 'usuarios'), {
+        ...form, idade: Number(form.idade), pontos: Number(form.pontos),
+        ativo: true, organizationId: profile?.organizationId || 'default-org',
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      });
       onSuccess();
-    }
+    } catch {
+      const msg = 'Erro ao criar usuário.'; setError(msg); onError(msg);
+    } finally { setSubmitting(false); }
   };
-
-  const inputClasses = "w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="p-3 rounded-xl text-sm font-medium text-center bg-red-50 text-red-700 border border-red-100 animate-in fade-in slide-in-from-top-2">
-          {error}
-        </div>
-      )}
-
-      <div className="space-y-1">
-        <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Nome da Campanha</label>
-        <input 
-          required
-          className={inputClasses}
-          value={formData.nome}
-          onChange={e => setFormData({...formData, nome: e.target.value})}
-          placeholder="Ex: Indicação Premiada"
-        />
+      {error && <div className="flex items-center gap-2 p-3 rounded-xl text-sm bg-red-50 text-red-700"><AlertCircle className="w-4 h-4" />{error}</div>}
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Nome</label><input required className={inp} value={form.nome} onChange={e => s('nome', e.target.value)} /></div>
+        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Sobrenome</label><input required className={inp} value={form.sobrenome} onChange={e => s('sobrenome', e.target.value)} /></div>
       </div>
-
-      <div className="space-y-1">
-        <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Descrição</label>
-        <textarea 
-          required
-          rows={2}
-          className={cn(inputClasses, "resize-none")}
-          value={formData.descricao}
-          onChange={e => setFormData({...formData, descricao: e.target.value})}
-          placeholder="Descreva o objetivo da campanha..."
-        />
+      <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Email</label><input required type="email" className={inp} value={form.email} onChange={e => s('email', e.target.value)} /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">CPF</label><input required className={inp} value={form.cpf} onChange={e => s('cpf', e.target.value)} /></div>
+        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">CEP</label><input className={inp} value={form.cep} onChange={e => s('cep', e.target.value)} /></div>
       </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Pontos</label>
-          <input 
-            required
-            type="number"
-            className={inputClasses}
-            value={formData.pontos}
-            onChange={e => setFormData({...formData, pontos: e.target.value})}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Tipo</label>
-          <select 
-            className={inputClasses}
-            value={formData.tipo}
-            onChange={e => setFormData({...formData, tipo: e.target.value as any})}
-          >
-            <option value="indicacao">Indicação</option>
-            <option value="acao_manual">Ação Manual</option>
-            <option value="bonus">Bônus</option>
-            <option value="promocional">Promocional</option>
-          </select>
-        </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Idade</label><input type="number" className={inp} value={form.idade} onChange={e => s('idade', e.target.value)} /></div>
+        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Pontos Iniciais</label><input type="number" min="0" className={inp} value={form.pontos} onChange={e => s('pontos', e.target.value)} /></div>
       </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Data Início</label>
-          <input 
-            required
-            type="date"
-            className={inputClasses}
-            value={formData.dataInicio}
-            onChange={e => setFormData({...formData, dataInicio: e.target.value})}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Data Fim</label>
-          <input 
-            required
-            type="date"
-            className={inputClasses}
-            value={formData.dataFim}
-            onChange={e => setFormData({...formData, dataFim: e.target.value})}
-          />
-        </div>
-      </div>
-
-      <div className="space-y-1">
-        <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Status Inicial</label>
-        <select 
-          className={inputClasses}
-          value={formData.status}
-          onChange={e => setFormData({...formData, status: e.target.value as any})}
-        >
-          <option value="ativa">Ativa</option>
-          <option value="inativa">Inativa</option>
-        </select>
-      </div>
-
-      <button 
-        disabled={submitting}
-        type="submit"
-        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
-      >
-        {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (campanha ? 'Salvar Alterações' : 'Criar Campanha')}
+      <button type="submit" disabled={submitting}
+        className="w-full flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-700 text-white font-medium py-2.5 rounded-xl shadow-lg shadow-zinc-200 disabled:opacity-60 text-sm">
+        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+        Criar Usuário
       </button>
     </form>
   );
 }
 
-function AddUserForm({ onSuccess, onError }: { onSuccess: () => void, onError: (msg: string) => void }) {
-  const { profile } = useAuth();
-  const [formData, setFormData] = useState({
-    nome: '',
-    sobrenome: '',
-    cpf: '',
-    cep: '',
-    idade: '',
-    email: ''
+// ─── Image Upload Field ───────────────────────────────────────────────────────
+// Uses canvas-based compression → stores base64 data URL directly in Firestore.
+// No Firebase Storage required (works on free Spark plan).
+
+function compressToDataUrl(file: File, maxWidth = 1200, quality = 0.78): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const ratio = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * ratio);
+      canvas.height = Math.round(img.height * ratio);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('Canvas não disponível')); return; }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Falha ao carregar imagem')); };
+    img.src = objectUrl;
   });
+}
+
+export function ImageUploadField({
+  value,
+  onChange,
+  storagePath: _storagePath,   // kept for API compatibility, unused
+  label = 'Imagem da Campanha',
+}: {
+  value?: string;
+  onChange: (url: string) => void;
+  storagePath?: string;
+  label?: string;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [processing, setProcessing] = useState(false);
+  const [preview, setPreview] = useState<string | null>(value || null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Sync preview when value prop changes (async data load)
+  useEffect(() => {
+    if (!processing) setPreview(value || null);
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) { setError('Arquivo inválido. Use JPG, PNG ou WebP.'); return; }
+    if (file.size > 8 * 1024 * 1024) { setError('Imagem muito grande. Máximo 8 MB.'); return; }
+    setError(null);
+    setProcessing(true);
+    try {
+      const dataUrl = await compressToDataUrl(file);
+      // Rough size check: Firestore doc limit is 1 MB; base64 overhead ~33%
+      if (dataUrl.length > 900_000) {
+        setError('Imagem ainda muito grande após compressão. Use uma imagem menor.');
+        setProcessing(false);
+        return;
+      }
+      setPreview(dataUrl);
+      onChange(dataUrl);
+    } catch (e) {
+      setError('Erro ao processar imagem. Tente outra.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  };
+
+  return (
+    <div>
+      <label className="text-xs font-semibold text-zinc-500 uppercase ml-1 block mb-2">{label}</label>
+      <div
+        onDrop={handleDrop}
+        onDragOver={e => e.preventDefault()}
+        onClick={() => !processing && fileRef.current?.click()}
+        className={cn(
+          'relative w-full rounded-2xl border-2 border-dashed transition-all cursor-pointer overflow-hidden',
+          preview ? 'border-transparent' : 'border-stone-200 hover:border-amber-300 bg-stone-50',
+          processing && 'pointer-events-none'
+        )}
+        style={{ aspectRatio: '16/7' }}
+      >
+        {preview ? (
+          <>
+            <img src={preview} alt="preview" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <span className="text-white text-sm font-semibold flex items-center gap-1">
+                <Upload className="w-4 h-4" /> Trocar imagem
+              </span>
+            </div>
+            {!processing && (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setPreview(null); onChange(''); }}
+                className="absolute top-2 right-2 p-1 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full py-10 gap-2 text-zinc-400">
+            <ImageIcon className="w-10 h-10 opacity-40" />
+            <p className="text-sm font-medium text-zinc-500">Arraste ou clique para enviar</p>
+            <p className="text-xs text-zinc-400">JPG, PNG ou WebP · Recomendado 1200×525 (16:7) · Máx 8 MB</p>
+          </div>
+        )}
+        {processing && (
+          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2">
+            <Loader2 className="w-8 h-8 text-white animate-spin" />
+            <span className="text-white text-xs">Processando…</span>
+          </div>
+        )}
+      </div>
+      {error && <p className="mt-1 text-xs text-red-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</p>}
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+    </div>
+  );
+}
+
+// ─── Create Campaign Form ─────────────────────────────────────────────────────
+
+function CampanhaCreateForm({ onSuccess, onError }: { onSuccess: () => void; onError: (msg: string) => void }) {
+  const { profile } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imagemUrl, setImagemUrl] = useState('');
+  const [tempId] = useState(() => `temp_${Date.now()}`);
+  const [form, setForm] = useState({
+    nome: '', descricao: '', empresa: '', tipo_campanha: 'promocional',
+    pontos_tier1: '', meta_tier1: '', pontos_tier2: '', meta_tier2: '', pontos_tier3: '', meta_tier3: '',
+    limite_por_usuario: '', limite_total: '', atribuicao: 'todos', notas_internas: '',
+    status: 'ativa',
+    dataInicio: new Date().toISOString().split('T')[0],
+    dataFim: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+  });
+
+  const s = (f: string, v: string) => setForm(p => ({ ...p, [f]: v }));
+  const inp = 'w-full border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-stone-50';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
-
-    setSubmitting(true);
-    setError(null);
-    let success = false;
-
+    if (!form.nome.trim()) { setError('O nome é obrigatório.'); return; }
+    if (Number(form.pontos_tier1) <= 0) { setError('Pontos do Tier 1 devem ser maiores que 0.'); return; }
+    setSubmitting(true); setError(null);
     try {
-      await addDoc(collection(db, 'usuarios'), {
-        ...formData,
-        idade: Number(formData.idade),
-        pontos: 0,
-        ativo: true,
-        role: 'usuario',
+      await addDoc(collection(db, 'campanhas'), {
+        nome: form.nome.trim(), descricao: form.descricao.trim(), empresa: form.empresa.trim(),
+        tipo_campanha: form.tipo_campanha, tipo: form.tipo_campanha,
+        pontos_tier1: Number(form.pontos_tier1), pontos: Number(form.pontos_tier1),
+        meta_tier1: form.meta_tier1.trim(),
+        pontos_tier2: form.pontos_tier2 ? Number(form.pontos_tier2) : null,
+        meta_tier2: form.meta_tier2.trim(),
+        pontos_tier3: form.pontos_tier3 ? Number(form.pontos_tier3) : null,
+        meta_tier3: form.meta_tier3.trim(),
+        limite_por_usuario: form.limite_por_usuario ? Number(form.limite_por_usuario) : null,
+        limite_total: form.limite_total ? Number(form.limite_total) : null,
+        atribuicao: form.atribuicao, notas_internas: form.notas_internas.trim(),
+        status: form.status, imagemUrl: imagemUrl || null,
+        dataInicio: Timestamp.fromDate(new Date(form.dataInicio)),
+        dataFim: Timestamp.fromDate(new Date(form.dataFim)),
         organizationId: profile?.organizationId || 'default-org',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       });
-      
-      setFormData({
-        nome: '',
-        sobrenome: '',
-        cpf: '',
-        cep: '',
-        idade: '',
-        email: ''
-      });
-
-      success = true;
-    } catch (err) {
-      console.error("Erro ao salvar usuário:", err);
-      const msg = 'Erro ao criar usuário. Tente novamente.';
-      setError(msg);
-      onError(msg);
-    } finally {
-      setSubmitting(false);
-    }
-
-    if (success) {
       onSuccess();
-    }
+    } catch (err) {
+      console.error(err);
+      const msg = 'Erro ao criar campanha.'; setError(msg); onError(msg);
+    } finally { setSubmitting(false); }
   };
 
-  const inputClasses = "w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all";
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="p-3 rounded-xl text-sm font-medium text-center bg-red-50 text-red-700 border border-red-100 animate-in fade-in slide-in-from-top-2">
-          {error}
-        </div>
-      )}
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {error && <div className="flex items-center gap-2 p-3 rounded-xl text-sm bg-red-50 text-red-700 border border-red-100"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</div>}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Nome</label>
-          <input 
-            required
-            className={inputClasses}
-            value={formData.nome}
-            onChange={e => setFormData({...formData, nome: e.target.value})}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Sobrenome</label>
-          <input 
-            required
-            className={inputClasses}
-            value={formData.sobrenome}
-            onChange={e => setFormData({...formData, sobrenome: e.target.value})}
-          />
-        </div>
-      </div>
-      
-      <div className="space-y-1">
-        <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Email</label>
-        <input 
-          required
-          type="email"
-          className={inputClasses}
-          value={formData.email}
-          onChange={e => setFormData({...formData, email: e.target.value})}
-        />
-      </div>
+      {/* Image */}
+      <ImageUploadField
+        value={imagemUrl}
+        onChange={setImagemUrl}
+        storagePath={`campanhas/${tempId}/banner`}
+      />
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">CPF</label>
-          <input 
-            required
-            placeholder="000.000.000-00"
-            className={inputClasses}
-            value={formData.cpf}
-            onChange={e => setFormData({...formData, cpf: e.target.value})}
-          />
+      {/* Basic */}
+      <section>
+        <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Informações Básicas</h4>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs font-medium text-zinc-600 mb-1 block">Nome *</label><input required className={inp} value={form.nome} onChange={e => s('nome', e.target.value)} placeholder="Ex: Indicação Premiada" /></div>
+            <div><label className="text-xs font-medium text-zinc-600 mb-1 block">Empresa</label><input className={inp} value={form.empresa} onChange={e => s('empresa', e.target.value)} placeholder="Ex: Empresa XYZ" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-zinc-600 mb-1 block">Tipo</label>
+              <select className={inp} value={form.tipo_campanha} onChange={e => s('tipo_campanha', e.target.value)}>
+                <option value="indicacao">Indicação</option><option value="venda_direta">Venda Direta</option>
+                <option value="ativacao">Ativação</option><option value="retencao">Retenção</option>
+                <option value="acao_manual">Ação Manual</option><option value="bonus">Bônus</option>
+                <option value="promocional">Promocional</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-600 mb-1 block">Status Inicial</label>
+              <select className={inp} value={form.status} onChange={e => s('status', e.target.value)}>
+                <option value="rascunho">Rascunho</option><option value="ativa">Ativa</option><option value="pausada">Pausada</option>
+              </select>
+            </div>
+          </div>
+          <div><label className="text-xs font-medium text-zinc-600 mb-1 block">Descrição</label>
+            <textarea required rows={2} className={cn(inp, 'resize-none')} value={form.descricao} onChange={e => s('descricao', e.target.value)} placeholder="Descreva o objetivo..." /></div>
         </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-500 uppercase ml-1">CEP</label>
-          <input 
-            placeholder="00000-000"
-            className={inputClasses}
-            value={formData.cep}
-            onChange={e => setFormData({...formData, cep: e.target.value})}
-          />
+      </section>
+
+      {/* Tiers */}
+      <section>
+        <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Recompensas</h4>
+        <div className="grid grid-cols-3 gap-3">
+          {([1, 2, 3] as const).map(tier => (
+            <div key={tier} className="bg-stone-50 rounded-xl p-3 border border-stone-100 space-y-2">
+              <div className="text-[10px] font-bold text-zinc-500 uppercase">Tier {tier}{tier === 1 ? ' *' : ''}</div>
+              <input type="number" min={tier === 1 ? '1' : '0'} required={tier === 1}
+                placeholder={`Pontos${tier === 1 ? ' *' : ''}`}
+                className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white"
+                value={form[`pontos_tier${tier}` as keyof typeof form]}
+                onChange={e => s(`pontos_tier${tier}`, e.target.value)} />
+              <input type="text" placeholder="Meta (opcional)"
+                className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white"
+                value={form[`meta_tier${tier}` as keyof typeof form]}
+                onChange={e => s(`meta_tier${tier}`, e.target.value)} />
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
 
-      <div className="space-y-1">
-        <label className="text-xs font-semibold text-slate-500 uppercase ml-1">Idade</label>
-        <input 
-          type="number"
-          className={inputClasses}
-          value={formData.idade}
-          onChange={e => setFormData({...formData, idade: e.target.value})}
-        />
-      </div>
+      {/* Dates */}
+      <section>
+        <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Período</h4>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="text-xs font-medium text-zinc-600 mb-1 block">Início *</label><input required type="date" className={inp} value={form.dataInicio} onChange={e => s('dataInicio', e.target.value)} /></div>
+          <div><label className="text-xs font-medium text-zinc-600 mb-1 block">Fim *</label><input required type="date" className={inp} value={form.dataFim} onChange={e => s('dataFim', e.target.value)} /></div>
+        </div>
+      </section>
 
-      <button 
-        disabled={submitting}
-        type="submit"
-        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
-      >
-        {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Cadastrar Usuário'}
+      {/* Assignment */}
+      <section>
+        <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Atribuição</h4>
+        <div className="flex gap-2">
+          {(['todos', 'especificos', 'grupos'] as const).map(opt => (
+            <button key={opt} type="button" onClick={() => s('atribuicao', opt)}
+              className={cn('flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border transition-all',
+                form.atribuicao === opt ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-stone-200 text-zinc-600 hover:border-amber-300')}>
+              {opt === 'todos' ? 'Todos' : opt === 'especificos' ? 'Específicos' : 'Grupos'}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <button type="submit" disabled={submitting}
+        className="w-full flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-700 text-white font-medium py-2.5 rounded-xl shadow-lg shadow-zinc-200 disabled:opacity-60 text-sm">
+        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+        Criar Campanha
       </button>
     </form>
   );
