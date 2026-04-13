@@ -1,27 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { 
+import { useCep, formatCep, cepDigits } from '../../hooks/useCep';
+import {
   Trophy,
-  ArrowLeft, 
-  Save, 
-  User, 
-  Mail, 
-  CreditCard, 
-  MapPin, 
-  Calendar, 
-  Shield, 
-  Key, 
-  History, 
-  Loader2, 
-  CheckCircle2, 
+  ArrowLeft,
+  Save,
+  User,
+  Mail,
+  CreditCard,
+  MapPin,
+  Calendar,
+  Shield,
+  Key,
+  History,
+  Loader2,
+  CheckCircle2,
   XCircle,
   AlertCircle,
   UserPlus,
   Lock,
   Unlock,
   RefreshCw,
-  Plus
+  Plus,
+  Search
 } from 'lucide-react';
 import { 
   doc, 
@@ -112,6 +114,32 @@ export default function UserDetail() {
     email: '',
     password: '',
   });
+
+  // CEP auto-lookup
+  const { cepData, cepLoading, cepError, lookupCep, clearCepData } = useCep();
+
+  // Trigger lookup when admin edits the CEP field
+  useEffect(() => {
+    const digits = cepDigits(formData.cep || '');
+    if (digits.length === 8) {
+      lookupCep(formData.cep || '');
+    } else if (digits.length < 8) {
+      clearCepData();
+    }
+  }, [formData.cep]);
+
+  // Fill address fields when ViaCEP returns data
+  useEffect(() => {
+    if (cepData) {
+      setFormData(prev => ({
+        ...prev,
+        uf: cepData.uf,
+        cidade: cepData.cidade,
+        bairro: cepData.bairro,
+        logradouro: cepData.logradouro,
+      }));
+    }
+  }, [cepData]);
 
   useEffect(() => {
     if (!id) return;
@@ -421,10 +449,19 @@ export default function UserDetail() {
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs text-stone-500 mb-1">CEP</label>
-                        <input type="text" value={formData.cep || ''}
-                          onChange={e => setFormData({...formData, cep: e.target.value})}
-                          className="w-full px-3 py-2 text-sm rounded-lg border border-stone-200 bg-white focus:ring-2 focus:ring-amber-400/30 focus:border-amber-500 outline-none"
-                          placeholder="00000-000" />
+                        <div className="relative">
+                          <input type="text" value={formData.cep || ''}
+                            onChange={e => setFormData({...formData, cep: formatCep(e.target.value)})}
+                            className="w-full px-3 py-2 pr-8 text-sm rounded-lg border border-stone-200 bg-white focus:ring-2 focus:ring-amber-400/30 focus:border-amber-500 outline-none"
+                            placeholder="00000-000" maxLength={9} inputMode="numeric" />
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                            {cepLoading && <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin" />}
+                            {!cepLoading && cepData && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+                            {!cepLoading && cepError && <AlertCircle className="w-3.5 h-3.5 text-amber-500" />}
+                          </div>
+                        </div>
+                        {cepError && <p className="text-[10px] text-amber-600 mt-1">{cepError}</p>}
+                        {cepData && <p className="text-[10px] text-green-600 mt-1">✓ {cepData.cidade} — {cepData.uf}</p>}
                       </div>
                       <div>
                         <label className="block text-xs text-stone-500 mb-1">Estado (UF)</label>
