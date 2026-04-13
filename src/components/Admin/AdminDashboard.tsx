@@ -51,6 +51,12 @@ interface Usuario {
   sobrenome: string;
   cpf: string;
   cep: string;
+  uf?: string;
+  cidade?: string;
+  bairro?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
   idade: number;
   email: string;
   pontos: number;
@@ -131,10 +137,16 @@ export default function AdminDashboard() {
   const [toast, setToast] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [tipoFilter, setTipoFilter] = useState<string>('todos');
+  const [ufFilter, setUfFilter] = useState<string>('');
+  const [cidadeFilter, setCidadeFilter] = useState<string>('');
+  const [statusUserFilter, setStatusUserFilter] = useState<string>('todos');
 
   const setTab = (tab: 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes') => {
     setSearchParams({ tab });
     setSearchTerm('');
+    setUfFilter('');
+    setCidadeFilter('');
+    setStatusUserFilter('todos');
   };
 
   useEffect(() => {
@@ -174,11 +186,32 @@ export default function AdminDashboard() {
     } catch (e) { console.error(e); }
   };
 
-  const filteredUsers = usuarios.filter(u =>
-    `${u.nome} ${u.sobrenome}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.cpf.includes(searchTerm)
-  );
+  const filteredUsers = usuarios.filter(u => {
+    const matchSearch =
+      `${u.nome} ${u.sobrenome}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.cpf.includes(searchTerm) ||
+      (u.cep || '').includes(searchTerm);
+    const matchUf     = !ufFilter     || (u.uf || '').toUpperCase() === ufFilter.toUpperCase();
+    const matchCidade = !cidadeFilter || (u.cidade || '').toLowerCase().includes(cidadeFilter.toLowerCase());
+    const matchStatus = statusUserFilter === 'todos'
+      || (statusUserFilter === 'ativo' && u.ativo)
+      || (statusUserFilter === 'inativo' && !u.ativo);
+    return matchSearch && matchUf && matchCidade && matchStatus;
+  });
+
+  // Derived lists for geo filter dropdowns
+  const availableUfs: string[] = Array.from(
+    new Set(usuarios.map(u => u.uf).filter(Boolean) as string[])
+  ).sort();
+  const availableCidades: string[] = Array.from(
+    new Set(
+      usuarios
+        .filter(u => !ufFilter || (u.uf || '').toUpperCase() === ufFilter.toUpperCase())
+        .map(u => u.cidade)
+        .filter(Boolean) as string[]
+    )
+  ).sort();
 
   const filteredCampanhas = campanhas.filter(c => {
     const matchSearch =
@@ -305,6 +338,43 @@ export default function AdminDashboard() {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
+            {/* Geographic filters — usuarios only */}
+            {activeTab === 'usuarios' && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Filter className="w-3 h-3 text-zinc-400 flex-shrink-0" />
+                {/* Status */}
+                <select value={statusUserFilter} onChange={e => setStatusUserFilter(e.target.value)}
+                  className="text-xs border border-stone-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-zinc-600">
+                  <option value="todos">Todos</option>
+                  <option value="ativo">Ativos</option>
+                  <option value="inativo">Inativos</option>
+                </select>
+                {/* UF */}
+                <select value={ufFilter} onChange={e => { setUfFilter(e.target.value); setCidadeFilter(''); }}
+                  className="text-xs border border-stone-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-zinc-600">
+                  <option value="">Todos UF</option>
+                  {availableUfs.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+                </select>
+                {/* Cidade — only when UF is selected and there are options */}
+                {ufFilter && availableCidades.length > 0 && (
+                  <select value={cidadeFilter} onChange={e => setCidadeFilter(e.target.value)}
+                    className="text-xs border border-stone-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-zinc-600">
+                    <option value="">Todas Cidades</option>
+                    {availableCidades.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                )}
+                {/* Active filter chip */}
+                {(ufFilter || cidadeFilter || statusUserFilter !== 'todos') && (
+                  <button
+                    onClick={() => { setUfFilter(''); setCidadeFilter(''); setStatusUserFilter('todos'); }}
+                    className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 transition-colors flex items-center gap-1"
+                  >
+                    <X className="w-3 h-3" />
+                    {filteredUsers.length} resultado{filteredUsers.length !== 1 ? 's' : ''}
+                  </button>
+                )}
+              </div>
+            )}
             {activeTab === 'campanhas' && (
               <div className="flex items-center gap-2">
                 <Filter className="w-3 h-3 text-zinc-400" />
@@ -344,7 +414,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="bg-stone-50/70 border-b border-stone-200">
                     <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Usuário</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">CPF / CEP</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">CPF / Localização</th>
                     <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Pontos</th>
                     <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Ações</th>
@@ -366,7 +436,12 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-zinc-700">{u.cpf}</div>
-                        <div className="text-xs text-zinc-400">{u.cep || '—'}</div>
+                        <div className="text-xs text-zinc-400 flex items-center gap-1">
+                          {u.cidade && u.uf
+                            ? <><span className="font-medium text-zinc-500">{u.uf}</span> · {u.cidade}</>
+                            : u.cep || '—'
+                          }
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <button onClick={() => toggleUserStatus(u)}

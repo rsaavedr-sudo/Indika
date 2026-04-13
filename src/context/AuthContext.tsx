@@ -16,6 +16,15 @@ interface UserProfile {
   mustChangePassword?: boolean;
   organizationId?: string;
   lastLoginAt?: any;
+  // Address fields (CEP integration)
+  cep?: string;
+  uf?: string;
+  cidade?: string;
+  bairro?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  referencia?: string;
 }
 
 interface AuthContextType {

@@ -48,12 +48,19 @@ interface Usuario {
   sobrenome: string;
   cpf: string;
   cep: string;
+  uf?: string;
+  cidade?: string;
+  bairro?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  referencia?: string;
   idade: number;
   email: string;
   pontos: number;
   ativo: boolean;
   role: 'admin' | 'usuario';
-  uid?: string; // Firebase Auth UID
+  uid?: string;
   emailLogin?: string;
   hasAccess?: boolean;
   accessCreatedAt?: Timestamp;
@@ -405,17 +412,67 @@ export default function UserDetail() {
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">CEP</label>
-                    <div className="relative">
-                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                      <input 
-                        type="text"
-                        value={formData.cep || ''}
-                        onChange={e => setFormData({...formData, cep: e.target.value})}
-                        className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                        required
-                      />
+                  {/* Address block */}
+                  <div className="col-span-full rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-3">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-stone-500 uppercase tracking-wide">
+                      <MapPin className="w-3.5 h-3.5" />
+                      Endereço
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs text-stone-500 mb-1">CEP</label>
+                        <input type="text" value={formData.cep || ''}
+                          onChange={e => setFormData({...formData, cep: e.target.value})}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-stone-200 bg-white focus:ring-2 focus:ring-amber-400/30 focus:border-amber-500 outline-none"
+                          placeholder="00000-000" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-stone-500 mb-1">Estado (UF)</label>
+                        <input type="text" value={formData.uf || ''}
+                          onChange={e => setFormData({...formData, uf: e.target.value.toUpperCase().slice(0,2)})}
+                          maxLength={2}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-stone-200 bg-white focus:ring-2 focus:ring-amber-400/30 focus:border-amber-500 outline-none"
+                          placeholder="SP" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-stone-500 mb-1">Cidade</label>
+                        <input type="text" value={formData.cidade || ''}
+                          onChange={e => setFormData({...formData, cidade: e.target.value})}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-stone-200 bg-white focus:ring-2 focus:ring-amber-400/30 focus:border-amber-500 outline-none"
+                          placeholder="São Paulo" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-stone-500 mb-1">Bairro</label>
+                        <input type="text" value={formData.bairro || ''}
+                          onChange={e => setFormData({...formData, bairro: e.target.value})}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-stone-200 bg-white focus:ring-2 focus:ring-amber-400/30 focus:border-amber-500 outline-none"
+                          placeholder="Centro" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-stone-500 mb-1">Logradouro / Rua</label>
+                        <input type="text" value={formData.logradouro || ''}
+                          onChange={e => setFormData({...formData, logradouro: e.target.value})}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-stone-200 bg-white focus:ring-2 focus:ring-amber-400/30 focus:border-amber-500 outline-none"
+                          placeholder="Av. Paulista" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-stone-500 mb-1">Número</label>
+                        <input type="text" value={formData.numero || ''}
+                          onChange={e => setFormData({...formData, numero: e.target.value})}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-stone-200 bg-white focus:ring-2 focus:ring-amber-400/30 focus:border-amber-500 outline-none"
+                          placeholder="1000" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-stone-500 mb-1">Complemento</label>
+                        <input type="text" value={formData.complemento || ''}
+                          onChange={e => setFormData({...formData, complemento: e.target.value})}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-stone-200 bg-white focus:ring-2 focus:ring-amber-400/30 focus:border-amber-500 outline-none"
+                          placeholder="Apto 12, Bloco B" />
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-2">
