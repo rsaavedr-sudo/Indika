@@ -4,8 +4,8 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import {
-  Users, Megaphone, LogOut, Trophy,
-  User, ChevronLeft, ChevronRight, Shield, Target, Layers,
+  Users, LogOut, Trophy,
+  User, ChevronLeft, ChevronRight, Shield, Target, Layers, LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -17,7 +17,7 @@ interface NavItem {
   soon?: boolean;
 }
 
-export type AdminSection = 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'comprar-pontos';
+export type AdminSection = 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'comprar-pontos';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -29,13 +29,15 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
   const [collapsed, setCollapsed] = useState(false);
 
   const nav: NavItem[] = [
-    { label: 'Usuários',   icon: <Users className="w-[18px] h-[18px]" />,   href: '/admin?tab=usuarios'  },
-    { label: 'Campanhas',  icon: <Layers className="w-[18px] h-[18px]" />,  href: '/admin?tab=campanhas' },
-    { label: 'Missões',    icon: <Target className="w-[18px] h-[18px]" />,  href: '/admin?tab=missoes'   },
-    { label: 'Faixas',     icon: <Shield className="w-[18px] h-[18px]" />,  href: '/admin?tab=faixas'    },
+    { label: 'Dashboard',  icon: <LayoutDashboard className="w-[18px] h-[18px]" />, href: '/admin?tab=dashboard' },
+    { label: 'Usuários',   icon: <Users className="w-[18px] h-[18px]" />,           href: '/admin?tab=usuarios'  },
+    { label: 'Campanhas',  icon: <Layers className="w-[18px] h-[18px]" />,          href: '/admin?tab=campanhas' },
+    { label: 'Missões',    icon: <Target className="w-[18px] h-[18px]" />,          href: '/admin?tab=missoes'   },
+    { label: 'Faixas',     icon: <Shield className="w-[18px] h-[18px]" />,          href: '/admin?tab=faixas'    },
   ];
 
   const sectionMap: Record<AdminSection, string> = {
+    dashboard: '/admin?tab=dashboard',
     usuarios: '/admin?tab=usuarios',
     campanhas: '/admin?tab=campanhas',
     missoes: '/admin?tab=missoes',

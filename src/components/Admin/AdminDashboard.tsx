@@ -41,6 +41,7 @@ import { useAuth } from '../../context/AuthContext';
 import AdminLayout, { AdminSection } from './AdminLayout';
 import FaixasConfig from './FaixasConfig';
 import MissoesAdmin from './MissoesAdmin';
+import DashboardAdmin from './DashboardAdmin';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -120,7 +121,7 @@ function effectiveTipo(c: Campanha)   { return c.tipo_campanha || c.tipo || ''; 
 export default function AdminDashboard() {
   const { profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as 'usuarios' | 'campanhas' | 'faixas' | 'missoes') || 'usuarios';
+  const activeTab = (searchParams.get('tab') as 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes') || 'dashboard';
 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
@@ -131,7 +132,7 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [tipoFilter, setTipoFilter] = useState<string>('todos');
 
-  const setTab = (tab: 'usuarios' | 'campanhas' | 'faixas' | 'missoes') => {
+  const setTab = (tab: 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes') => {
     setSearchParams({ tab });
     setSearchTerm('');
   };
@@ -193,7 +194,7 @@ export default function AdminDashboard() {
     new Set(campanhas.map(c => effectiveTipo(c)).filter(Boolean) as string[])
   );
 
-  const activeSection = (['campanhas', 'faixas', 'missoes', 'comprar-pontos'].includes(activeTab)
+  const activeSection = (['dashboard', 'campanhas', 'faixas', 'missoes', 'comprar-pontos'].includes(activeTab)
     ? activeTab
     : 'usuarios') as AdminSection;
 
@@ -221,13 +222,16 @@ export default function AdminDashboard() {
       <div className="bg-white border-b border-stone-200 px-8 h-16 flex items-center justify-between sticky top-0 z-10">
         <div>
           <h1 className="text-lg font-bold text-zinc-900">
-            {activeTab === 'usuarios' ? 'Usuários'
+            {activeTab === 'dashboard' ? 'Dashboard'
+              : activeTab === 'usuarios' ? 'Usuários'
               : activeTab === 'campanhas' ? 'Campanhas'
               : activeTab === 'missoes' ? 'Missões'
               : 'Faixas'}
           </h1>
           <p className="text-xs text-zinc-400">
-            {activeTab === 'usuarios'
+            {activeTab === 'dashboard'
+              ? 'Visão geral do programa'
+              : activeTab === 'usuarios'
               ? `${usuarios.length} cadastrados · ${usuarios.filter(u => u.ativo).length} ativos`
               : activeTab === 'campanhas'
               ? `${campanhas.length} campanhas · ${campanhas.filter(c => c.status === 'ativa').length} ativas`
@@ -239,6 +243,7 @@ export default function AdminDashboard() {
         {/* Tab switcher */}
         <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl">
           {([
+            { id: 'dashboard', label: 'Dashboard', icon: <span className="w-4 h-4 inline-flex items-center justify-center text-sm">📊</span> },
             { id: 'usuarios',  label: 'Usuários',  icon: <Users className="w-4 h-4" /> },
             { id: 'campanhas', label: 'Campanhas', icon: <Megaphone className="w-4 h-4" /> },
             { id: 'missoes',   label: 'Missões',   icon: <span className="w-4 h-4 inline-flex items-center justify-center text-sm">🎯</span> },
@@ -259,6 +264,9 @@ export default function AdminDashboard() {
       </div>
 
       <main className="px-8 py-6 max-w-7xl">
+
+        {/* ── Dashboard tab ── */}
+        {activeTab === 'dashboard' && <DashboardAdmin />}
 
         {/* ── Faixas tab ── */}
         {activeTab === 'faixas' && <FaixasConfig />}
