@@ -63,6 +63,55 @@
         { "fieldPath": "userId",    "order": "ASCENDING"  },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "surveys",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "organizationId", "order": "ASCENDING"  },
+        { "fieldPath": "status",         "order": "ASCENDING"  },
+        { "fieldPath": "createdAt",      "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "surveys",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "organizationId", "order": "ASCENDING"  },
+        { "fieldPath": "createdAt",      "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "survey_questions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "surveyId", "order": "ASCENDING" },
+        { "fieldPath": "ordem",    "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "survey_responses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId",    "order": "ASCENDING"  },
+        { "fieldPath": "surveyId",  "order": "ASCENDING"  }
+      ]
+    },
+    {
+      "collectionGroup": "survey_responses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "organizationId", "order": "ASCENDING"  },
+        { "fieldPath": "surveyId",       "order": "ASCENDING"  }
+      ]
+    },
+    {
+      "collectionGroup": "survey_response_items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "surveyId",    "order": "ASCENDING" },
+        { "fieldPath": "questionId",  "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

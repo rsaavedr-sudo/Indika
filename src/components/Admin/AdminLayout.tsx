@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   Users, LogOut, Trophy,
   User, ChevronLeft, ChevronRight, Shield, Target, Layers, LayoutDashboard,
-  DollarSign, Settings2,
+  DollarSign, Settings2, ClipboardList,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -18,7 +18,7 @@ interface NavItem {
   soon?: boolean;
 }
 
-export type AdminSection = 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'comprar-pontos' | 'withdrawals' | 'finance';
+export type AdminSection = 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'comprar-pontos' | 'withdrawals' | 'finance' | 'surveys';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -34,6 +34,7 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
     { label: 'Usuários',   icon: <Users className="w-[18px] h-[18px]" />,           href: '/admin?tab=usuarios'  },
     { label: 'Campanhas',  icon: <Layers className="w-[18px] h-[18px]" />,          href: '/admin?tab=campanhas' },
     { label: 'Missões',    icon: <Target className="w-[18px] h-[18px]" />,          href: '/admin?tab=missoes'   },
+    { label: 'Pesquisas',  icon: <ClipboardList className="w-[18px] h-[18px]" />,   href: '/admin?tab=surveys'   },
     { label: 'Faixas',     icon: <Shield className="w-[18px] h-[18px]" />,          href: '/admin?tab=faixas'    },
   ];
 
@@ -51,6 +52,7 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
     'comprar-pontos': '/admin/comprar-pontos',
     withdrawals: '/admin?tab=withdrawals',
     finance: '/admin?tab=finance',
+    surveys: '/admin?tab=surveys',
   };
 
   return (

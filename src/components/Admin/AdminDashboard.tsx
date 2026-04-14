@@ -44,6 +44,7 @@ import MissoesAdmin from './MissoesAdmin';
 import DashboardAdmin from './DashboardAdmin';
 import WithdrawalsAdmin from './WithdrawalsAdmin';
 import FinanceSettings from './FinanceSettings';
+import SurveysAdmin from './SurveysAdmin';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -129,7 +130,7 @@ function effectiveTipo(c: Campanha)   { return c.tipo_campanha || c.tipo || ''; 
 export default function AdminDashboard() {
   const { profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance') || 'dashboard';
+  const activeTab = (searchParams.get('tab') as 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance' | 'surveys') || 'dashboard';
 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
@@ -143,7 +144,7 @@ export default function AdminDashboard() {
   const [cidadeFilter, setCidadeFilter] = useState<string>('');
   const [statusUserFilter, setStatusUserFilter] = useState<string>('todos');
 
-  const setTab = (tab: 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance') => {
+  const setTab = (tab: 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance' | 'surveys') => {
     setSearchParams({ tab });
     setSearchTerm('');
     setUfFilter('');
@@ -263,6 +264,7 @@ export default function AdminDashboard() {
               : activeTab === 'missoes' ? 'Missões'
               : activeTab === 'withdrawals' ? 'Saques Pix'
               : activeTab === 'finance' ? 'Configurações Financeiras'
+              : activeTab === 'surveys' ? 'Pesquisas'
               : 'Faixas'}
           </h1>
           <p className="text-xs text-zinc-400">
@@ -278,6 +280,8 @@ export default function AdminDashboard() {
               ? 'Aprovar, recusar e marcar saques como pagos'
               : activeTab === 'finance'
               ? 'Taxa de conversão e limites de saque'
+              : activeTab === 'surveys'
+              ? 'Crie e gerencie pesquisas para os usuários'
               : 'Configure os níveis de pontuação'}
           </p>
         </div>
@@ -320,6 +324,9 @@ export default function AdminDashboard() {
 
         {/* ── Finance settings tab ── */}
         {activeTab === 'finance' && <FinanceSettings />}
+
+        {/* ── Surveys tab ── */}
+        {activeTab === 'surveys' && <SurveysAdmin />}
 
         {/* ── Stats (only for usuarios / campanhas) ── */}
         {(activeTab === 'usuarios' || activeTab === 'campanhas') && (<>
