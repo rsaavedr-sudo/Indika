@@ -4,6 +4,7 @@ import { signOut } from 'firebase/auth';
 import { auth, db } from '../../firebase';
 import WithdrawPage from './WithdrawPage';
 import StatementPage from './StatementPage';
+import UserSettings from './UserSettings';
 import { getFaixaByPontos, getFaixaProgress, getPontosParaProxima, DEFAULT_FAIXAS } from '../../utils/faixas';
 import {
   collection,
@@ -44,6 +45,7 @@ import {
   Trophy,
   DollarSign,
   ReceiptText,
+  Settings,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
@@ -113,7 +115,7 @@ interface MissaoParticipation {
   createdAt: any;
 }
 
-type Section = 'home' | 'campanhas' | 'missoes' | 'historial' | 'comprar' | 'loja' | 'sacar' | 'extrato';
+type Section = 'home' | 'campanhas' | 'missoes' | 'historial' | 'comprar' | 'loja' | 'sacar' | 'extrato' | 'configuracoes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -149,8 +151,9 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode; dividerBef
   { id: 'historial', label: 'Histórico',       icon: <Activity className="w-[18px] h-[18px]" /> },
   { id: 'comprar',   label: 'Comprar Pontos',  icon: <Sparkles className="w-[18px] h-[18px]" /> },
   { id: 'loja',      label: 'Loja Virtual',    icon: <Gift className="w-[18px] h-[18px]" /> },
-  { id: 'sacar',     label: 'Sacar Pontos',    icon: <DollarSign className="w-[18px] h-[18px]" />, dividerBefore: true },
-  { id: 'extrato',   label: 'Extrato',         icon: <ReceiptText className="w-[18px] h-[18px]" /> },
+  { id: 'sacar',          label: 'Sacar Pontos',    icon: <DollarSign className="w-[18px] h-[18px]" />, dividerBefore: true },
+  { id: 'extrato',        label: 'Extrato',         icon: <ReceiptText className="w-[18px] h-[18px]" /> },
+  { id: 'configuracoes',  label: 'Configurações',   icon: <Settings className="w-[18px] h-[18px]" /> },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -515,6 +518,7 @@ export default function UserDashboard() {
               )}
               {activeSection === 'sacar' && <WithdrawPage />}
               {activeSection === 'extrato' && <StatementPage />}
+              {activeSection === 'configuracoes' && <UserSettings />}
             </motion.div>
           </AnimatePresence>
         </main>
