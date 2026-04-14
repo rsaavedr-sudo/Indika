@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   Users, LogOut, Trophy,
   User, ChevronLeft, ChevronRight, Shield, Target, Layers, LayoutDashboard,
+  DollarSign, Settings2,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -17,7 +18,7 @@ interface NavItem {
   soon?: boolean;
 }
 
-export type AdminSection = 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'comprar-pontos';
+export type AdminSection = 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'comprar-pontos' | 'withdrawals' | 'finance';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -36,6 +37,11 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
     { label: 'Faixas',     icon: <Shield className="w-[18px] h-[18px]" />,          href: '/admin?tab=faixas'    },
   ];
 
+  const financeNav: NavItem[] = [
+    { label: 'Saques Pix',   icon: <DollarSign className="w-[18px] h-[18px]" />, href: '/admin?tab=withdrawals' },
+    { label: 'Configurações', icon: <Settings2 className="w-[18px] h-[18px]" />,  href: '/admin?tab=finance'     },
+  ];
+
   const sectionMap: Record<AdminSection, string> = {
     dashboard: '/admin?tab=dashboard',
     usuarios: '/admin?tab=usuarios',
@@ -43,6 +49,8 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
     missoes: '/admin?tab=missoes',
     faixas: '/admin?tab=faixas',
     'comprar-pontos': '/admin/comprar-pontos',
+    withdrawals: '/admin?tab=withdrawals',
+    finance: '/admin?tab=finance',
   };
 
   return (
@@ -92,6 +100,34 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
               </Link>
             );
           })}
+
+          {/* Finance section */}
+          <div className="pt-3 mt-2 border-t border-stone-100 space-y-0.5">
+            {!collapsed && (
+              <p className="px-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Financeiro</p>
+            )}
+            {financeNav.map(item => {
+              const isActive = activeSection && sectionMap[activeSection] === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  title={collapsed ? item.label : undefined}
+                  className={cn(
+                    'flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all',
+                    isActive
+                      ? 'bg-amber-50 text-amber-700'
+                      : 'text-zinc-500 hover:bg-stone-50 hover:text-zinc-900'
+                  )}
+                >
+                  <span className={cn('flex-shrink-0', isActive ? 'text-amber-600' : 'text-zinc-400')}>
+                    {item.icon}
+                  </span>
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                </Link>
+              );
+            })}
+          </div>
 
           {/* Divider */}
           <div className="pt-3 mt-2 border-t border-stone-100">

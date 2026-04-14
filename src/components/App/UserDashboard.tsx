@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../../firebase';
+import WithdrawPage from './WithdrawPage';
+import StatementPage from './StatementPage';
 import { getFaixaByPontos, getFaixaProgress, getPontosParaProxima, DEFAULT_FAIXAS } from '../../utils/faixas';
 import {
   collection,
@@ -40,6 +42,8 @@ import {
   Hourglass,
   CircleSlash,
   Trophy,
+  DollarSign,
+  ReceiptText,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
@@ -109,7 +113,7 @@ interface MissaoParticipation {
   createdAt: any;
 }
 
-type Section = 'home' | 'campanhas' | 'missoes' | 'historial' | 'comprar' | 'loja';
+type Section = 'home' | 'campanhas' | 'missoes' | 'historial' | 'comprar' | 'loja' | 'sacar' | 'extrato';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -138,13 +142,15 @@ function effectivePontos(c: Campanha) { return c.pontos_tier1 ?? c.pontos ?? 0; 
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
-const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
+const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode; dividerBefore?: boolean }[] = [
   { id: 'home',      label: 'Início',         icon: <Home className="w-[18px] h-[18px]" /> },
   { id: 'campanhas', label: 'Campanhas',       icon: <Layers className="w-[18px] h-[18px]" /> },
   { id: 'missoes',   label: 'Missões',         icon: <Target className="w-[18px] h-[18px]" /> },
   { id: 'historial', label: 'Histórico',       icon: <Activity className="w-[18px] h-[18px]" /> },
   { id: 'comprar',   label: 'Comprar Pontos',  icon: <Sparkles className="w-[18px] h-[18px]" /> },
   { id: 'loja',      label: 'Loja Virtual',    icon: <Gift className="w-[18px] h-[18px]" /> },
+  { id: 'sacar',     label: 'Sacar Pontos',    icon: <DollarSign className="w-[18px] h-[18px]" />, dividerBefore: true },
+  { id: 'extrato',   label: 'Extrato',         icon: <ReceiptText className="w-[18px] h-[18px]" /> },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -318,27 +324,29 @@ export default function UserDashboard() {
         {/* Nav */}
         <nav className="flex-1 p-2.5 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setSection(item.id)}
-              className={cn(
-                'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all text-left',
-                activeSection === item.id
-                  ? 'bg-amber-50 text-amber-700'
-                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-stone-50'
-              )}
-            >
-              <span className={activeSection === item.id ? 'text-amber-600' : 'text-zinc-400'}>
-                {item.icon}
-              </span>
-              {item.label}
-              {item.id === 'campanhas' && myCampanhas.length > 0 && (
-                <span className={cn(
-                  'ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                  activeSection === item.id ? 'bg-amber-200 text-amber-800' : 'bg-stone-200 text-zinc-600'
-                )}>{myCampanhas.length}</span>
-              )}
-            </button>
+            <React.Fragment key={item.id}>
+              {item.dividerBefore && <div className="border-t border-stone-100 my-2" />}
+              <button
+                onClick={() => setSection(item.id)}
+                className={cn(
+                  'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all text-left',
+                  activeSection === item.id
+                    ? 'bg-amber-50 text-amber-700'
+                    : 'text-zinc-500 hover:text-zinc-900 hover:bg-stone-50'
+                )}
+              >
+                <span className={activeSection === item.id ? 'text-amber-600' : 'text-zinc-400'}>
+                  {item.icon}
+                </span>
+                {item.label}
+                {item.id === 'campanhas' && myCampanhas.length > 0 && (
+                  <span className={cn(
+                    'ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                    activeSection === item.id ? 'bg-amber-200 text-amber-800' : 'bg-stone-200 text-zinc-600'
+                  )}>{myCampanhas.length}</span>
+                )}
+              </button>
+            </React.Fragment>
           ))}
 
           {profile?.role === 'admin' && (
@@ -505,6 +513,8 @@ export default function UserDashboard() {
               {activeSection === 'missoes' && (
                 <MissoesSection userId={user?.uid || ''} pontos={pontos} />
               )}
+              {activeSection === 'sacar' && <WithdrawPage />}
+              {activeSection === 'extrato' && <StatementPage />}
             </motion.div>
           </AnimatePresence>
         </main>

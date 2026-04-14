@@ -42,6 +42,8 @@ import AdminLayout, { AdminSection } from './AdminLayout';
 import FaixasConfig from './FaixasConfig';
 import MissoesAdmin from './MissoesAdmin';
 import DashboardAdmin from './DashboardAdmin';
+import WithdrawalsAdmin from './WithdrawalsAdmin';
+import FinanceSettings from './FinanceSettings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -127,7 +129,7 @@ function effectiveTipo(c: Campanha)   { return c.tipo_campanha || c.tipo || ''; 
 export default function AdminDashboard() {
   const { profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes') || 'dashboard';
+  const activeTab = (searchParams.get('tab') as 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance') || 'dashboard';
 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
@@ -141,7 +143,7 @@ export default function AdminDashboard() {
   const [cidadeFilter, setCidadeFilter] = useState<string>('');
   const [statusUserFilter, setStatusUserFilter] = useState<string>('todos');
 
-  const setTab = (tab: 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes') => {
+  const setTab = (tab: 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance') => {
     setSearchParams({ tab });
     setSearchTerm('');
     setUfFilter('');
@@ -227,7 +229,7 @@ export default function AdminDashboard() {
     new Set(campanhas.map(c => effectiveTipo(c)).filter(Boolean) as string[])
   );
 
-  const activeSection = (['dashboard', 'campanhas', 'faixas', 'missoes', 'comprar-pontos'].includes(activeTab)
+  const activeSection = (['dashboard', 'campanhas', 'faixas', 'missoes', 'comprar-pontos', 'withdrawals', 'finance'].includes(activeTab)
     ? activeTab
     : 'usuarios') as AdminSection;
 
@@ -259,6 +261,8 @@ export default function AdminDashboard() {
               : activeTab === 'usuarios' ? 'Usuários'
               : activeTab === 'campanhas' ? 'Campanhas'
               : activeTab === 'missoes' ? 'Missões'
+              : activeTab === 'withdrawals' ? 'Saques Pix'
+              : activeTab === 'finance' ? 'Configurações Financeiras'
               : 'Faixas'}
           </h1>
           <p className="text-xs text-zinc-400">
@@ -270,6 +274,10 @@ export default function AdminDashboard() {
               ? `${campanhas.length} campanhas · ${campanhas.filter(c => c.status === 'ativa').length} ativas`
               : activeTab === 'missoes'
               ? 'Gerencie as missões da plataforma'
+              : activeTab === 'withdrawals'
+              ? 'Aprovar, recusar e marcar saques como pagos'
+              : activeTab === 'finance'
+              ? 'Taxa de conversão e limites de saque'
               : 'Configure os níveis de pontuação'}
           </p>
         </div>
@@ -306,6 +314,12 @@ export default function AdminDashboard() {
 
         {/* ── Missões tab ── */}
         {activeTab === 'missoes' && <MissoesAdmin />}
+
+        {/* ── Withdrawals tab ── */}
+        {activeTab === 'withdrawals' && <WithdrawalsAdmin />}
+
+        {/* ── Finance settings tab ── */}
+        {activeTab === 'finance' && <FinanceSettings />}
 
         {/* ── Stats (only for usuarios / campanhas) ── */}
         {(activeTab === 'usuarios' || activeTab === 'campanhas') && (<>
