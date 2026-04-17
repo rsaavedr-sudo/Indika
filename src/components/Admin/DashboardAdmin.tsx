@@ -83,6 +83,76 @@ const MOCK_AFILIADOS_SERIES = [
   { mes: 'Abr', novos: 29 },
 ];
 
+// ─── SVG Bar Chart ────────────────────────────────────────────────────────────
+
+interface BarChartBar {
+  key: string;
+  color: string;
+  label: string;
+}
+
+function BarChart({ data, bars }: { data: Record<string, any>[]; bars: BarChartBar[] }) {
+  const W = 520, H = 160, padL = 44, padR = 12, padT = 12, padB = 28;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+
+  const allVals = data.flatMap(d => bars.map(b => Number(d[b.key]) || 0));
+  const maxVal = Math.max(...allVals, 1);
+
+  const getX = (i: number) => padL + (i / Math.max(data.length - 1, 1)) * chartW;
+  const getY = (v: number) => padT + (1 - v / maxVal) * chartH;
+
+  const barWidth = Math.max(4, chartW / (data.length * (bars.length + 1)));
+  const barGap = barWidth * 0.5;
+
+  // Y axis ticks
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(p => ({ y: padT + (1 - p) * chartH, val: Math.round(maxVal * p) }));
+  const fmt = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
+      {/* Grid */}
+      {ticks.map(t => (
+        <g key={t.y}>
+          <line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke="#f1f0ee" strokeWidth="1" />
+          <text x={padL - 6} y={t.y + 4} textAnchor="end" fontSize="9" fill="#a1a1aa">{fmt(t.val)}</text>
+        </g>
+      ))}
+      {/* Bars */}
+      {data.map((d, i) => {
+        const xBase = getX(i);
+        return (
+          <g key={i}>
+            {bars.map((bar, bIdx) => {
+              const val = Number(d[bar.key]) || 0;
+              const x = xBase - (barWidth * bars.length) / 2 + bIdx * (barWidth + barGap);
+              const y = getY(val);
+              const height = chartH - (y - padT);
+              return (
+                <rect
+                  key={`${i}-${bIdx}`}
+                  x={x} y={y} width={barWidth} height={height}
+                  fill={bar.color}
+                  rx="1"
+                />
+              );
+            })}
+          </g>
+        );
+      })}
+      {/* X labels */}
+      {data.map((d, i) => {
+        if (data.length > 12 && i % 2 !== 0) return null;
+        return (
+          <text key={i} x={getX(i)} y={H - 6} textAnchor="middle" fontSize="9" fill="#a1a1aa">
+            {d.uf}
+          </text>
+        );
+      })}
+    </svg>
+  );
+}
+
 // ─── SVG Area Chart ────────────────────────────────────────────────────────────
 
 interface ChartLine {
@@ -235,6 +305,26 @@ export default function DashboardAdmin() {
       .sort((a, b) => (participacoesPorUser[b.id] || 0) - (participacoesPorUser[a.id] || 0))
       .slice(0, 10);
 
+    // Users by state (UF)
+    const usuariosPorEstado: Record<string, { ativo: number; inativo: number }> = {};
+    usuarios.forEach(u => {
+      const uf = u.uf || 'Outros';
+      if (!usuariosPorEstado[uf]) {
+        usuariosPorEstado[uf] = { ativo: 0, inativo: 0 };
+      }
+      if (u.ativo) {
+        usuariosPorEstado[uf].ativo += 1;
+      } else {
+        usuariosPorEstado[uf].inativo += 1;
+      }
+    });
+
+    const estadosOrdenados = Object.entries(usuariosPorEstado)
+      .map(([uf, data]) => ({ uf, total: data.ativo + data.inativo, ...data }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8)
+      .map(d => ({ uf: d.uf, ativo: d.ativo, inativo: d.inativo }));
+
     // Recent events (last 8 transactions)
     const recentEvents = transacoes.slice(0, 8);
 
@@ -244,6 +334,7 @@ export default function DashboardAdmin() {
       vendasEfetivas, missoesCompletas, pctAtivos,
       clientesIndicados: vendasEfetivas,
       topPontos, topAtivos, recentEvents,
+      estadosOrdenados,
     };
   }, [usuarios, transacoes, participations, missaoParticipations]);
 
@@ -252,7 +343,7 @@ export default function DashboardAdmin() {
       <div className="flex items-center justify-center py-24">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
-            <Trophy className="w-5 h-5 text-amber-400" />
+            <Trophy className="w-5 h-5 text-[#60A5FA]" />
           </div>
           <div className="flex gap-1">
             {[0, 1, 2].map(i => (
@@ -266,7 +357,7 @@ export default function DashboardAdmin() {
 
   const { ativos, inativos, cancelados, total, pontosGerados, pontosCanjeados,
     pctCanje, vendasEfetivas, missoesCompletas, pctAtivos,
-    clientesIndicados, topPontos, topAtivos, recentEvents } = metrics;
+    clientesIndicados, topPontos, topAtivos, recentEvents, estadosOrdenados } = metrics;
 
   return (
     <div className="px-6 py-6 max-w-[1400px] space-y-6">
@@ -287,8 +378,8 @@ export default function DashboardAdmin() {
       <div className="bg-white rounded-xl border border-stone-200 p-5">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center">
-              <Zap className="w-4 h-4 text-amber-600" />
+            <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
+              <Zap className="w-4 h-4 text-blue-600" />
             </div>
             <div>
               <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Pontos do Programa</p>
@@ -338,11 +429,11 @@ export default function DashboardAdmin() {
           sub={total > 0 ? `${pctAtivos}% do total` : 'sem dados'}
         />
         <KpiCard
-          icon={<UserX className="w-5 h-5 text-amber-600" />}
-          iconBg="bg-amber-50"
+          icon={<UserX className="w-5 h-5 text-blue-600" />}
+          iconBg="bg-blue-50"
           label="Afiliados Inativos"
           value={inativos}
-          valueColor="text-amber-600"
+          valueColor="text-blue-600"
           sub={total > 0 ? `${100 - pctAtivos}% do total` : 'sem dados'}
         />
         <KpiCard
@@ -393,14 +484,14 @@ export default function DashboardAdmin() {
               <p className="text-xs text-zinc-400 mt-0.5">Gerados vs. Canjeados</p>
             </div>
             <div className="flex items-center gap-3">
-              <Legend color="#F59E0B" label="Gerados" />
+              <Legend color="#60A5FA" label="Gerados" />
               <Legend color="#10B981" label="Canjeados" />
             </div>
           </div>
           <AreaChart
             data={MOCK_POINTS_SERIES}
             lines={[
-              { key: 'gerados',   color: '#F59E0B', label: 'Gerados'   },
+              { key: 'gerados',   color: '#60A5FA', label: 'Gerados'   },
               { key: 'canjeados', color: '#10B981', label: 'Canjeados' },
             ]}
           />
@@ -413,16 +504,39 @@ export default function DashboardAdmin() {
               <h3 className="text-sm font-bold text-zinc-900">Novos Afiliados — Últimos 12 meses</h3>
               <p className="text-xs text-zinc-400 mt-0.5">Cadastros por mês</p>
             </div>
-            <Legend color="#6366F1" label="Novos" />
+            <Legend color="#1E3A8A" label="Novos" />
           </div>
           <AreaChart
             data={MOCK_AFILIADOS_SERIES}
             lines={[
-              { key: 'novos', color: '#6366F1', label: 'Novos afiliados' },
+              { key: 'novos', color: '#1E3A8A', label: 'Novos afiliados' },
             ]}
           />
         </div>
       </div>
+
+      {/* ── 4b. Usuários por Estado ── */}
+      {estadosOrdenados.length > 0 && (
+        <div className="bg-white rounded-xl border border-stone-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-bold text-zinc-900">Usuários Ativos vs Inativos por Estado</h3>
+              <p className="text-xs text-zinc-400 mt-0.5">Top {estadosOrdenados.length} estados</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Legend color="#10B981" label="Ativos" />
+              <Legend color="#60A5FA" label="Inativos" />
+            </div>
+          </div>
+          <BarChart
+            data={estadosOrdenados}
+            bars={[
+              { key: 'ativo', color: '#10B981', label: 'Ativos' },
+              { key: 'inativo', color: '#60A5FA', label: 'Inativos' },
+            ]}
+          />
+        </div>
+      )}
 
       {/* ── 5. Listas inferiores ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -443,11 +557,11 @@ export default function DashboardAdmin() {
                   'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0',
                   i === 0 ? 'bg-amber-400 text-white' :
                   i === 1 ? 'bg-zinc-300 text-zinc-700' :
-                  i === 2 ? 'bg-amber-700/30 text-amber-800' :
+                  i === 2 ? 'bg-blue-700/30 text-blue-800' :
                   'bg-stone-100 text-zinc-500'
                 )}>{i + 1}</span>
                 <div className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center flex-shrink-0">
-                  <span className="text-amber-400 text-[10px] font-bold">{u.nome[0]}</span>
+                  <span className="text-[#60A5FA] text-[10px] font-bold">{u.nome[0]}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-zinc-800 truncate">{u.nome} {u.sobrenome}</p>
@@ -463,7 +577,7 @@ export default function DashboardAdmin() {
         {/* Ranking: pontos */}
         <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-stone-100 flex items-center gap-2">
-            <Award className="w-4 h-4 text-amber-500" />
+            <Award className="w-4 h-4 text-blue-500" />
             <h3 className="text-sm font-bold text-zinc-900">Ranking Pontos</h3>
             <span className="ml-auto text-[10px] text-zinc-400 bg-stone-100 px-1.5 py-0.5 rounded-full">Top 10</span>
           </div>
@@ -480,11 +594,11 @@ export default function DashboardAdmin() {
                       'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0',
                       i === 0 ? 'bg-amber-400 text-white' :
                       i === 1 ? 'bg-zinc-300 text-zinc-700' :
-                      i === 2 ? 'bg-amber-700/30 text-amber-800' :
+                      i === 2 ? 'bg-blue-700/30 text-blue-800' :
                       'bg-stone-100 text-zinc-500'
                     )}>{i + 1}</span>
                     <p className="text-xs font-semibold text-zinc-800 truncate flex-1">{u.nome} {u.sobrenome}</p>
-                    <span className="text-xs font-black text-amber-600 flex-shrink-0">{(u.pontos || 0).toLocaleString('pt-BR')}</span>
+                    <span className="text-xs font-black text-blue-600 flex-shrink-0">{(u.pontos || 0).toLocaleString('pt-BR')}</span>
                   </div>
                   <div className="ml-7 w-full bg-stone-100 rounded-full h-1 overflow-hidden">
                     <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
@@ -508,11 +622,11 @@ export default function DashboardAdmin() {
               <div key={t.id} className="flex items-start gap-3 px-5 py-3">
                 <div className={cn(
                   'w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5',
-                  t.tipo === 'credito' ? 'bg-emerald-50' : 'bg-amber-50'
+                  t.tipo === 'credito' ? 'bg-emerald-50' : 'bg-blue-50'
                 )}>
                   {t.tipo === 'credito'
                     ? <ArrowUpCircle className="w-3.5 h-3.5 text-emerald-600" />
-                    : <ArrowDownCircle className="w-3.5 h-3.5 text-amber-600" />}
+                    : <ArrowDownCircle className="w-3.5 h-3.5 text-blue-600" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-zinc-700 truncate">{t.descricao || (t.tipo === 'credito' ? 'Pontos creditados' : 'Pontos resgatados')}</p>
@@ -522,7 +636,7 @@ export default function DashboardAdmin() {
                 </div>
                 <span className={cn(
                   'text-xs font-black flex-shrink-0',
-                  t.tipo === 'credito' ? 'text-emerald-600' : 'text-amber-600'
+                  t.tipo === 'credito' ? 'text-emerald-600' : 'text-blue-600'
                 )}>
                   {t.tipo === 'credito' ? '+' : '−'}{t.pontos}
                 </span>
@@ -558,7 +672,7 @@ const SECONDARY_COLORS: Record<string, { bg: string; text: string; dot: string }
   blue:   { bg: 'bg-blue-50',   text: 'text-blue-700',   dot: 'bg-blue-500'   },
   violet: { bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
   emerald:{ bg: 'bg-emerald-50',text: 'text-emerald-700',dot: 'bg-emerald-500'},
-  amber:  { bg: 'bg-amber-50',  text: 'text-amber-700',  dot: 'bg-amber-500'  },
+  amber:  { bg: 'bg-blue-50',  text: 'text-blue-700',  dot: 'bg-blue-500'  },
 };
 
 function SecondaryKpi({ icon, color, label, value }: {

@@ -31,6 +31,13 @@ interface Missao {
   status: MissaoStatus;
   faixaMinima?: string;
   atribuicao: 'todos' | 'especificos';
+  segmentacao?: {
+    sexo?: 'masculino' | 'feminino' | 'todos';
+    idadeMin?: number;
+    idadeMax?: number;
+    estados?: string[];
+  };
+  prioridade?: 'HIGH' | 'MEDIUM' | 'LOW';
   organizationId: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -366,6 +373,11 @@ function MissaoModal({
     status: missao?.status ?? 'ativa' as MissaoStatus,
     faixaMinima: missao?.faixaMinima ?? '',
     atribuicao: missao?.atribuicao ?? 'todos' as 'todos' | 'especificos',
+    sexo: missao?.segmentacao?.sexo ?? 'todos',
+    idadeMin: missao?.segmentacao?.idadeMin ?? '',
+    idadeMax: missao?.segmentacao?.idadeMax ?? '',
+    estados: missao?.segmentacao?.estados?.join(', ') ?? '',
+    prioridade: missao?.prioridade ?? 'MEDIUM',
     organizationId: missao?.organizationId ?? 'default-org',
   }));
   const [submitting, setSubmitting] = useState(false);
@@ -382,6 +394,10 @@ function MissaoModal({
     setSubmitting(true);
     setError(null);
     try {
+      const estadosArray = form.estados
+        ? form.estados.split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
+        : [];
+
       const payload = {
         nome: form.nome.trim(),
         descricao: form.descricao.trim(),
@@ -394,6 +410,13 @@ function MissaoModal({
         status: form.status,
         faixaMinima: form.faixaMinima || null,
         atribuicao: form.atribuicao,
+        segmentacao: {
+          sexo: form.sexo || 'todos',
+          idadeMin: form.idadeMin ? Number(form.idadeMin) : undefined,
+          idadeMax: form.idadeMax ? Number(form.idadeMax) : undefined,
+          estados: estadosArray.length > 0 ? estadosArray : undefined,
+        },
+        prioridade: form.prioridade || 'MEDIUM',
         organizationId: form.organizationId,
         updatedAt: serverTimestamp(),
       };
@@ -557,6 +580,45 @@ function MissaoModal({
                     {lbl}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Segmentation */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Segmentação (Opcional)</label>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Sexo</label>
+                    <select className={inp} value={form.sexo} onChange={e => set('sexo', e.target.value)}>
+                      <option value="todos">Todos</option>
+                      <option value="masculino">Masculino</option>
+                      <option value="feminino">Feminino</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Prioridade</label>
+                    <select className={inp} value={form.prioridade} onChange={e => set('prioridade', e.target.value)}>
+                      <option value="HIGH">Alta</option>
+                      <option value="MEDIUM">Média</option>
+                      <option value="LOW">Baixa</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Idade Mínima</label>
+                    <input type="number" min="0" max="120" className={inp} placeholder="Ex: 18" value={form.idadeMin} onChange={e => set('idadeMin', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Idade Máxima</label>
+                    <input type="number" min="0" max="120" className={inp} placeholder="Ex: 65" value={form.idadeMax} onChange={e => set('idadeMax', e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Estados (UFs separadas por vírgula)</label>
+                  <input type="text" className={inp} placeholder="Ex: SP, RJ, MG" value={form.estados} onChange={e => set('estados', e.target.value)} />
+                </div>
               </div>
             </div>
           </form>

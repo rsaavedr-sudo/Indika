@@ -45,6 +45,7 @@ import DashboardAdmin from './DashboardAdmin';
 import WithdrawalsAdmin from './WithdrawalsAdmin';
 import FinanceSettings from './FinanceSettings';
 import SurveysAdmin from './SurveysAdmin';
+import VendaPontosAdmin from './VendaPontosAdmin';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,6 +87,13 @@ interface Campanha {
   atribuicao?: 'todos' | 'especificos' | 'grupos';
   notas_internas?: string;
   imagemUrl?: string;
+  segmentacao?: {
+    sexo?: 'masculino' | 'feminino' | 'todos';
+    idadeMin?: number;
+    idadeMax?: number;
+    estados?: string[];
+  };
+  prioridade?: 'HIGH' | 'MEDIUM' | 'LOW';
   status: 'rascunho' | 'ativa' | 'pausada' | 'finalizada' | 'inativa';
   dataInicio: Timestamp;
   dataFim: Timestamp;
@@ -105,11 +113,11 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  rascunho: 'bg-stone-100 text-zinc-500',
+  rascunho: 'bg-slate-100 text-slate-600',
   ativa: 'bg-green-50 text-green-700',
-  pausada: 'bg-amber-50 text-amber-700',
-  finalizada: 'bg-stone-50 text-blue-700',
-  inativa: 'bg-stone-100 text-zinc-500',
+  pausada: 'bg-blue-50 text-blue-700',
+  finalizada: 'bg-slate-50 text-slate-600',
+  inativa: 'bg-slate-100 text-slate-600',
 };
 
 const TIPO_LABELS: Record<string, string> = {
@@ -130,7 +138,7 @@ function effectiveTipo(c: Campanha)   { return c.tipo_campanha || c.tipo || ''; 
 export default function AdminDashboard() {
   const { profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance' | 'surveys') || 'dashboard';
+  const activeTab = (searchParams.get('tab') as 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance' | 'surveys' | 'venda_pontos') || 'dashboard';
 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
@@ -144,7 +152,7 @@ export default function AdminDashboard() {
   const [cidadeFilter, setCidadeFilter] = useState<string>('');
   const [statusUserFilter, setStatusUserFilter] = useState<string>('todos');
 
-  const setTab = (tab: 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance' | 'surveys') => {
+  const setTab = (tab: 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance' | 'surveys' | 'venda_pontos') => {
     setSearchParams({ tab });
     setSearchTerm('');
     setUfFilter('');
@@ -245,7 +253,7 @@ export default function AdminDashboard() {
             exit={{ opacity: 0, y: 20, x: '-50%' }}
             className={cn(
               'fixed bottom-8 left-1/2 z-50 px-6 py-3 rounded-2xl shadow-2xl font-semibold flex items-center gap-3 min-w-[320px] justify-center',
-              toast.type === 'success' ? 'bg-zinc-900 text-white' : 'bg-red-600 text-white'
+              toast.type === 'success' ? 'bg-[#0A2540] text-white' : 'bg-red-600 text-white'
             )}
           >
             {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
@@ -255,7 +263,7 @@ export default function AdminDashboard() {
       </AnimatePresence>
 
       {/* Top bar */}
-      <div className="bg-white border-b border-stone-200 px-8 h-16 flex items-center justify-between sticky top-0 z-10">
+      <div className="bg-white border-b border-slate-200 px-8 h-16 flex items-center justify-between sticky top-0 z-10">
         <div>
           <h1 className="text-lg font-bold text-zinc-900">
             {activeTab === 'dashboard' ? 'Dashboard'
@@ -265,6 +273,7 @@ export default function AdminDashboard() {
               : activeTab === 'withdrawals' ? 'Saques Pix'
               : activeTab === 'finance' ? 'Configurações Financeiras'
               : activeTab === 'surveys' ? 'Pesquisas'
+              : activeTab === 'venda_pontos' ? 'Venda de Pontos'
               : 'Faixas'}
           </h1>
           <p className="text-xs text-zinc-400">
@@ -282,29 +291,10 @@ export default function AdminDashboard() {
               ? 'Taxa de conversão e limites de saque'
               : activeTab === 'surveys'
               ? 'Crie e gerencie pesquisas para os usuários'
+              : activeTab === 'venda_pontos'
+              ? 'Monitore vendas de pontos e receitas'
               : 'Configure os níveis de pontuação'}
           </p>
-        </div>
-        {/* Tab switcher */}
-        <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl">
-          {([
-            { id: 'dashboard', label: 'Dashboard', icon: <span className="w-4 h-4 inline-flex items-center justify-center text-sm">📊</span> },
-            { id: 'usuarios',  label: 'Usuários',  icon: <Users className="w-4 h-4" /> },
-            { id: 'campanhas', label: 'Campanhas', icon: <Megaphone className="w-4 h-4" /> },
-            { id: 'missoes',   label: 'Missões',   icon: <span className="w-4 h-4 inline-flex items-center justify-center text-sm">🎯</span> },
-            { id: 'faixas',    label: 'Faixas',    icon: <span className="w-4 h-4 inline-flex items-center justify-center text-sm">🛡️</span> },
-          ] as const).map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setTab(tab.id)}
-              className={cn(
-                'flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
-                activeTab === tab.id ? 'bg-white text-amber-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
-              )}
-            >
-              {tab.icon} {tab.label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -328,20 +318,23 @@ export default function AdminDashboard() {
         {/* ── Surveys tab ── */}
         {activeTab === 'surveys' && <SurveysAdmin />}
 
+        {/* ── Venda de Pontos tab ── */}
+        {activeTab === 'venda_pontos' && <VendaPontosAdmin />}
+
         {/* ── Stats (only for usuarios / campanhas) ── */}
         {(activeTab === 'usuarios' || activeTab === 'campanhas') && (<>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
           {activeTab === 'usuarios' ? (
             <>
-              <StatCard icon={<Users className="w-5 h-5 text-amber-600" />} bg="bg-stone-50" label="Total cadastrados" value={usuarios.length} />
+              <StatCard icon={<Users className="w-5 h-5 text-blue-600" />} bg="bg-blue-50" label="Total cadastrados" value={usuarios.length} />
               <StatCard icon={<CheckCircle2 className="w-5 h-5 text-green-600" />} bg="bg-green-50" label="Contas ativas" value={usuarios.filter(u => u.ativo).length} />
-              <StatCard icon={<Trophy className="w-5 h-5 text-amber-600" />} bg="bg-amber-50" label="Total de pontos" value={usuarios.reduce((s, u) => s + (u.pontos || 0), 0)} />
+              <StatCard icon={<Trophy className="w-5 h-5 text-blue-600" />} bg="bg-blue-50" label="Total de pontos" value={usuarios.reduce((s, u) => s + (u.pontos || 0), 0)} />
             </>
           ) : (
             <>
               <StatCard icon={<CheckCircle2 className="w-5 h-5 text-green-600" />} bg="bg-green-50" label="Ativas" value={campanhas.filter(c => c.status === 'ativa').length} />
-              <StatCard icon={<Megaphone className="w-5 h-5 text-amber-600" />} bg="bg-amber-50" label="Total campanhas" value={campanhas.length} />
-              <StatCard icon={<XCircle className="w-5 h-5 text-zinc-400" />} bg="bg-stone-100" label="Pausadas / Finalizadas" value={campanhas.filter(c => c.status === 'pausada' || c.status === 'finalizada').length} />
+              <StatCard icon={<Megaphone className="w-5 h-5 text-blue-600" />} bg="bg-blue-50" label="Total campanhas" value={campanhas.length} />
+              <StatCard icon={<XCircle className="w-5 h-5 text-slate-500" />} bg="bg-slate-100" label="Pausadas / Finalizadas" value={campanhas.filter(c => c.status === 'pausada' || c.status === 'finalizada').length} />
             </>
           )}
         </div>
@@ -354,7 +347,7 @@ export default function AdminDashboard() {
               <input
                 type="text"
                 placeholder={activeTab === 'usuarios' ? 'Buscar nome, email ou CPF...' : 'Buscar campanhas...'}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
@@ -365,21 +358,21 @@ export default function AdminDashboard() {
                 <Filter className="w-3 h-3 text-zinc-400 flex-shrink-0" />
                 {/* Status */}
                 <select value={statusUserFilter} onChange={e => setStatusUserFilter(e.target.value)}
-                  className="text-xs border border-stone-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-zinc-600">
+                  className="text-xs border border-slate-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-slate-600">
                   <option value="todos">Todos</option>
                   <option value="ativo">Ativos</option>
                   <option value="inativo">Inativos</option>
                 </select>
                 {/* UF */}
                 <select value={ufFilter} onChange={e => { setUfFilter(e.target.value); setCidadeFilter(''); }}
-                  className="text-xs border border-stone-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-zinc-600">
+                  className="text-xs border border-slate-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-slate-600">
                   <option value="">Todos UF</option>
                   {availableUfs.map(uf => <option key={uf} value={uf}>{uf}</option>)}
                 </select>
                 {/* Cidade — only when UF is selected and there are options */}
                 {ufFilter && availableCidades.length > 0 && (
                   <select value={cidadeFilter} onChange={e => setCidadeFilter(e.target.value)}
-                    className="text-xs border border-stone-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-zinc-600">
+                    className="text-xs border border-slate-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-slate-600">
                     <option value="">Todas Cidades</option>
                     {availableCidades.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -388,7 +381,7 @@ export default function AdminDashboard() {
                 {(ufFilter || cidadeFilter || statusUserFilter !== 'todos') && (
                   <button
                     onClick={() => { setUfFilter(''); setCidadeFilter(''); setStatusUserFilter('todos'); }}
-                    className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 transition-colors flex items-center gap-1"
+                    className="text-xs text-blue-700 bg-blue-50 border border-amber-200 rounded-lg px-2.5 py-1.5 hover:bg-blue-100 transition-colors flex items-center gap-1"
                   >
                     <X className="w-3 h-3" />
                     {filteredUsers.length} resultado{filteredUsers.length !== 1 ? 's' : ''}
@@ -400,7 +393,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-2">
                 <Filter className="w-3 h-3 text-zinc-400" />
                 <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                  className="text-xs border border-stone-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-zinc-600">
+                  className="text-xs border border-slate-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-slate-600">
                   <option value="todos">Todos Status</option>
                   <option value="rascunho">Rascunho</option>
                   <option value="ativa">Ativa</option>
@@ -410,7 +403,7 @@ export default function AdminDashboard() {
                 </select>
                 {availableTipos.length > 0 && (
                   <select value={tipoFilter} onChange={e => setTipoFilter(e.target.value)}
-                    className="text-xs border border-stone-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-zinc-600">
+                    className="text-xs border border-slate-200 bg-white rounded-lg px-3 py-1.5 focus:outline-none text-slate-600">
                     <option value="todos">Todos Tipos</option>
                     {availableTipos.map(t => <option key={t} value={t}>{TIPO_LABELS[t] || t}</option>)}
                   </select>
@@ -420,7 +413,7 @@ export default function AdminDashboard() {
           </div>
           <button
             onClick={() => activeTab === 'usuarios' ? setIsAddModalOpen(true) : setIsAddCampanhaModalOpen(true)}
-            className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-700 text-white font-medium py-2 px-5 rounded-xl shadow-lg shadow-zinc-200 text-sm transition-all"
+            className="flex items-center gap-2 bg-[#0A2540] hover:bg-zinc-700 text-white font-medium py-2 px-5 rounded-xl shadow-lg shadow-zinc-200 text-sm transition-all"
           >
             {activeTab === 'usuarios' ? <UserPlus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {activeTab === 'usuarios' ? 'Novo Usuário' : 'Nova Campanha'}
@@ -429,16 +422,16 @@ export default function AdminDashboard() {
 
         {/* Tables */}
         {activeTab === 'usuarios' ? (
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-stone-50/70 border-b border-stone-200">
-                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Usuário</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">CPF / Localização</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Pontos</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Ações</th>
+                  <tr className="bg-stone-50/70 border-b border-slate-200">
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Usuário</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">CPF / Localização</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Pontos</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -446,7 +439,7 @@ export default function AdminDashboard() {
                     <tr key={u.id} className="hover:bg-stone-50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-zinc-900 flex items-center justify-center text-amber-400 font-bold text-sm">
+                          <div className="w-9 h-9 rounded-full bg-[#0A2540] flex items-center justify-center text-amber-400 font-bold text-sm">
                             {u.nome[0]}{u.sobrenome[0]}
                           </div>
                           <Link to={`/admin/usuarios/${u.id}`} className="hover:opacity-80 transition-opacity">
@@ -459,7 +452,7 @@ export default function AdminDashboard() {
                         <div className="text-sm text-zinc-700">{u.cpf}</div>
                         <div className="text-xs text-zinc-400 flex items-center gap-1">
                           {u.cidade && u.uf
-                            ? <><span className="font-medium text-zinc-500">{u.uf}</span> · {u.cidade}</>
+                            ? <><span className="font-medium text-slate-500">{u.uf}</span> · {u.cidade}</>
                             : u.cep || '—'
                           }
                         </div>
@@ -467,7 +460,7 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4">
                         <button onClick={() => toggleUserStatus(u)}
                           className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                            u.ativo ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-stone-100 text-zinc-600 hover:bg-slate-200')}>
+                            u.ativo ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
                           {u.ativo ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                           {u.ativo ? 'Ativo' : 'Inativo'}
                         </button>
@@ -481,7 +474,7 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-right">
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                           <Link to={`/admin/usuarios/${u.id}`}
-                            className="p-2 text-amber-600 hover:bg-stone-50 rounded-lg transition-colors inline-flex">
+                            className="p-2 text-blue-600 hover:bg-stone-50 rounded-lg transition-colors inline-flex">
                             <Edit2 className="w-4 h-4" />
                           </Link>
                         </div>
@@ -496,9 +489,9 @@ export default function AdminDashboard() {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-6 py-3 border-b border-stone-100 flex items-center justify-between">
-              <span className="text-xs text-zinc-500">{filteredCampanhas.length} campanha{filteredCampanhas.length !== 1 ? 's' : ''}</span>
+              <span className="text-xs text-slate-500">{filteredCampanhas.length} campanha{filteredCampanhas.length !== 1 ? 's' : ''}</span>
               <div className="flex gap-2">
                 {(['ativa', 'pausada', 'finalizada'] as const).map(s => {
                   const count = campanhas.filter(c => c.status === s).length;
@@ -513,12 +506,12 @@ export default function AdminDashboard() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-stone-50/70 border-b border-stone-200">
-                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Campanha</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tipo / Pontos</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Período</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Ações</th>
+                  <tr className="bg-stone-50/70 border-b border-slate-200">
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Campanha</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipo / Pontos</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Período</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -533,7 +526,7 @@ export default function AdminDashboard() {
                               <img src={c.imagemUrl} alt={c.nome}
                                 className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-stone-100" />
                             ) : (
-                              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 flex-shrink-0">
+                              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-amber-500 flex-shrink-0">
                                 <Megaphone className="w-5 h-5" />
                               </div>
                             )}
@@ -547,11 +540,11 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4">
                           {tipo && (
-                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-stone-100 text-zinc-600 text-[10px] font-bold uppercase mb-1">
+                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase mb-1">
                               <Tag className="w-3 h-3" />{TIPO_LABELS[tipo] || tipo}
                             </div>
                           )}
-                          <div className="text-sm font-bold text-amber-600">
+                          <div className="text-sm font-bold text-blue-600">
                             {pontos} pts
                             {c.pontos_tier2 ? <span className="text-zinc-400 font-normal"> / {c.pontos_tier2}{c.pontos_tier3 ? ` / ${c.pontos_tier3}` : ''}</span> : ''}
                           </div>
@@ -565,7 +558,7 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4">
                           <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
-                            STATUS_STYLES[c.status] || 'bg-stone-100 text-zinc-500')}>
+                            STATUS_STYLES[c.status] || 'bg-slate-100 text-slate-500')}>
                             {c.status === 'ativa' ? <CheckCircle2 className="w-3 h-3" /> :
                              c.status === 'pausada' ? <XCircle className="w-3 h-3" /> : null}
                             {STATUS_LABELS[c.status] || c.status}
@@ -573,7 +566,7 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <Link to={`/admin/campanhas/${c.id}`}
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-stone-50 rounded-lg border border-stone-200 hover:border-stone-300 transition-colors inline-flex ml-auto">
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-stone-50 rounded-lg border border-slate-200 hover:border-stone-300 transition-colors inline-flex ml-auto">
                             <Eye className="w-3.5 h-3.5" />Detalhes<ChevronRight className="w-3 h-3" />
                           </Link>
                         </td>
@@ -620,10 +613,10 @@ export default function AdminDashboard() {
 
 function StatCard({ icon, bg, label, value }: { icon: React.ReactNode; bg: string; label: string; value: number }) {
   return (
-    <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
       <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-3', bg)}>{icon}</div>
       <div className="text-2xl font-bold">{value.toLocaleString()}</div>
-      <div className="text-sm text-zinc-500">{label}</div>
+      <div className="text-sm text-slate-500">{label}</div>
     </div>
   );
 }
@@ -645,7 +638,7 @@ function Modal({ title, children, onClose, wide }: { title: string; children: Re
       >
         <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between flex-shrink-0">
           <h3 className="text-lg font-bold text-zinc-900">{title}</h3>
-          <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
             <XCircle className="w-5 h-5 text-zinc-400" />
           </button>
         </div>
@@ -663,7 +656,7 @@ function AddUserForm({ onSuccess, onError }: { onSuccess: () => void; onError: (
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const s = (f: string, v: string) => setForm(p => ({ ...p, [f]: v }));
-  const inp = 'w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none text-sm';
+  const inp = 'w-full px-4 py-2 bg-stone-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none text-sm';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -685,20 +678,20 @@ function AddUserForm({ onSuccess, onError }: { onSuccess: () => void; onError: (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <div className="flex items-center gap-2 p-3 rounded-xl text-sm bg-red-50 text-red-700"><AlertCircle className="w-4 h-4" />{error}</div>}
       <div className="grid grid-cols-2 gap-3">
-        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Nome</label><input required className={inp} value={form.nome} onChange={e => s('nome', e.target.value)} /></div>
-        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Sobrenome</label><input required className={inp} value={form.sobrenome} onChange={e => s('sobrenome', e.target.value)} /></div>
+        <div><label className="text-xs font-semibold text-slate-500 uppercase ml-1">Nome</label><input required className={inp} value={form.nome} onChange={e => s('nome', e.target.value)} /></div>
+        <div><label className="text-xs font-semibold text-slate-500 uppercase ml-1">Sobrenome</label><input required className={inp} value={form.sobrenome} onChange={e => s('sobrenome', e.target.value)} /></div>
       </div>
-      <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Email</label><input required type="email" className={inp} value={form.email} onChange={e => s('email', e.target.value)} /></div>
+      <div><label className="text-xs font-semibold text-slate-500 uppercase ml-1">Email</label><input required type="email" className={inp} value={form.email} onChange={e => s('email', e.target.value)} /></div>
       <div className="grid grid-cols-2 gap-3">
-        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">CPF</label><input required className={inp} value={form.cpf} onChange={e => s('cpf', e.target.value)} /></div>
-        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">CEP</label><input className={inp} value={form.cep} onChange={e => s('cep', e.target.value)} /></div>
+        <div><label className="text-xs font-semibold text-slate-500 uppercase ml-1">CPF</label><input required className={inp} value={form.cpf} onChange={e => s('cpf', e.target.value)} /></div>
+        <div><label className="text-xs font-semibold text-slate-500 uppercase ml-1">CEP</label><input className={inp} value={form.cep} onChange={e => s('cep', e.target.value)} /></div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Idade</label><input type="number" className={inp} value={form.idade} onChange={e => s('idade', e.target.value)} /></div>
-        <div><label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Pontos Iniciais</label><input type="number" min="0" className={inp} value={form.pontos} onChange={e => s('pontos', e.target.value)} /></div>
+        <div><label className="text-xs font-semibold text-slate-500 uppercase ml-1">Idade</label><input type="number" className={inp} value={form.idade} onChange={e => s('idade', e.target.value)} /></div>
+        <div><label className="text-xs font-semibold text-slate-500 uppercase ml-1">Pontos Iniciais</label><input type="number" min="0" className={inp} value={form.pontos} onChange={e => s('pontos', e.target.value)} /></div>
       </div>
       <button type="submit" disabled={submitting}
-        className="w-full flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-700 text-white font-medium py-2.5 rounded-xl shadow-lg shadow-zinc-200 disabled:opacity-60 text-sm">
+        className="w-full flex items-center justify-center gap-2 bg-[#0A2540] hover:bg-zinc-700 text-white font-medium py-2.5 rounded-xl shadow-lg shadow-zinc-200 disabled:opacity-60 text-sm">
         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
         Criar Usuário
       </button>
@@ -781,14 +774,14 @@ export function ImageUploadField({
 
   return (
     <div>
-      <label className="text-xs font-semibold text-zinc-500 uppercase ml-1 block mb-2">{label}</label>
+      <label className="text-xs font-semibold text-slate-500 uppercase ml-1 block mb-2">{label}</label>
       <div
         onDrop={handleDrop}
         onDragOver={e => e.preventDefault()}
         onClick={() => !processing && fileRef.current?.click()}
         className={cn(
           'relative w-full rounded-2xl border-2 border-dashed transition-all cursor-pointer overflow-hidden',
-          preview ? 'border-transparent' : 'border-stone-200 hover:border-amber-300 bg-stone-50',
+          preview ? 'border-transparent' : 'border-slate-200 hover:border-blue-300 bg-stone-50',
           processing && 'pointer-events-none'
         )}
         style={{ aspectRatio: '16/7' }}
@@ -814,7 +807,7 @@ export function ImageUploadField({
         ) : (
           <div className="flex flex-col items-center justify-center h-full py-10 gap-2 text-zinc-400">
             <ImageIcon className="w-10 h-10 opacity-40" />
-            <p className="text-sm font-medium text-zinc-500">Arraste ou clique para enviar</p>
+            <p className="text-sm font-medium text-slate-500">Arraste ou clique para enviar</p>
             <p className="text-xs text-zinc-400">JPG, PNG ou WebP · Recomendado 1200×525 (16:7) · Máx 8 MB</p>
           </div>
         )}
@@ -847,10 +840,11 @@ function CampanhaCreateForm({ onSuccess, onError }: { onSuccess: () => void; onE
     status: 'ativa',
     dataInicio: new Date().toISOString().split('T')[0],
     dataFim: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    sexo: 'todos', idadeMin: '', idadeMax: '', estados: '', prioridade: 'MEDIUM',
   });
 
   const s = (f: string, v: string) => setForm(p => ({ ...p, [f]: v }));
-  const inp = 'w-full border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-stone-50';
+  const inp = 'w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-stone-50';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -859,6 +853,10 @@ function CampanhaCreateForm({ onSuccess, onError }: { onSuccess: () => void; onE
     if (Number(form.pontos_tier1) <= 0) { setError('Pontos do Tier 1 devem ser maiores que 0.'); return; }
     setSubmitting(true); setError(null);
     try {
+      const estadosArray = form.estados
+        ? form.estados.split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
+        : [];
+
       await addDoc(collection(db, 'campanhas'), {
         nome: form.nome.trim(), descricao: form.descricao.trim(), empresa: form.empresa.trim(),
         tipo_campanha: form.tipo_campanha, tipo: form.tipo_campanha,
@@ -872,15 +870,23 @@ function CampanhaCreateForm({ onSuccess, onError }: { onSuccess: () => void; onE
         limite_total: form.limite_total ? Number(form.limite_total) : null,
         atribuicao: form.atribuicao, notas_internas: form.notas_internas.trim(),
         status: form.status, imagemUrl: imagemUrl || null,
+        segmentacao: {
+          sexo: form.sexo || 'todos',
+          idadeMin: form.idadeMin ? Number(form.idadeMin) : undefined,
+          idadeMax: form.idadeMax ? Number(form.idadeMax) : undefined,
+          estados: estadosArray.length > 0 ? estadosArray : undefined,
+        },
+        prioridade: form.prioridade || 'MEDIUM',
         dataInicio: Timestamp.fromDate(new Date(form.dataInicio)),
         dataFim: Timestamp.fromDate(new Date(form.dataFim)),
         organizationId: profile?.organizationId || 'default-org',
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       });
       onSuccess();
-    } catch (err) {
-      console.error(err);
-      const msg = 'Erro ao criar campanha.'; setError(msg); onError(msg);
+    } catch (err: any) {
+      console.error('[CampanhaForm] Erro:', err);
+      const msg = err?.message || err?.code || 'Erro ao criar campanha.';
+      setError(msg); onError(msg);
     } finally { setSubmitting(false); }
   };
 
@@ -900,12 +906,12 @@ function CampanhaCreateForm({ onSuccess, onError }: { onSuccess: () => void; onE
         <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Informações Básicas</h4>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs font-medium text-zinc-600 mb-1 block">Nome *</label><input required className={inp} value={form.nome} onChange={e => s('nome', e.target.value)} placeholder="Ex: Indicação Premiada" /></div>
-            <div><label className="text-xs font-medium text-zinc-600 mb-1 block">Empresa</label><input className={inp} value={form.empresa} onChange={e => s('empresa', e.target.value)} placeholder="Ex: Empresa XYZ" /></div>
+            <div><label className="text-xs font-medium text-slate-600 mb-1 block">Nome *</label><input required className={inp} value={form.nome} onChange={e => s('nome', e.target.value)} placeholder="Ex: Indicação Premiada" /></div>
+            <div><label className="text-xs font-medium text-slate-600 mb-1 block">Empresa</label><input className={inp} value={form.empresa} onChange={e => s('empresa', e.target.value)} placeholder="Ex: Empresa XYZ" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-zinc-600 mb-1 block">Tipo</label>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Tipo</label>
               <select className={inp} value={form.tipo_campanha} onChange={e => s('tipo_campanha', e.target.value)}>
                 <option value="indicacao">Indicação</option><option value="venda_direta">Venda Direta</option>
                 <option value="ativacao">Ativação</option><option value="retencao">Retenção</option>
@@ -914,13 +920,13 @@ function CampanhaCreateForm({ onSuccess, onError }: { onSuccess: () => void; onE
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600 mb-1 block">Status Inicial</label>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Status Inicial</label>
               <select className={inp} value={form.status} onChange={e => s('status', e.target.value)}>
                 <option value="rascunho">Rascunho</option><option value="ativa">Ativa</option><option value="pausada">Pausada</option>
               </select>
             </div>
           </div>
-          <div><label className="text-xs font-medium text-zinc-600 mb-1 block">Descrição</label>
+          <div><label className="text-xs font-medium text-slate-600 mb-1 block">Descrição</label>
             <textarea required rows={2} className={cn(inp, 'resize-none')} value={form.descricao} onChange={e => s('descricao', e.target.value)} placeholder="Descreva o objetivo..." /></div>
         </div>
       </section>
@@ -931,14 +937,14 @@ function CampanhaCreateForm({ onSuccess, onError }: { onSuccess: () => void; onE
         <div className="grid grid-cols-3 gap-3">
           {([1, 2, 3] as const).map(tier => (
             <div key={tier} className="bg-stone-50 rounded-xl p-3 border border-stone-100 space-y-2">
-              <div className="text-[10px] font-bold text-zinc-500 uppercase">Tier {tier}{tier === 1 ? ' *' : ''}</div>
+              <div className="text-[10px] font-bold text-slate-500 uppercase">Tier {tier}{tier === 1 ? ' *' : ''}</div>
               <input type="number" min={tier === 1 ? '1' : '0'} required={tier === 1}
                 placeholder={`Pontos${tier === 1 ? ' *' : ''}`}
-                className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white"
+                className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white"
                 value={form[`pontos_tier${tier}` as keyof typeof form]}
                 onChange={e => s(`pontos_tier${tier}`, e.target.value)} />
               <input type="text" placeholder="Meta (opcional)"
-                className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white"
+                className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white"
                 value={form[`meta_tier${tier}` as keyof typeof form]}
                 onChange={e => s(`meta_tier${tier}`, e.target.value)} />
             </div>
@@ -950,8 +956,8 @@ function CampanhaCreateForm({ onSuccess, onError }: { onSuccess: () => void; onE
       <section>
         <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Período</h4>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className="text-xs font-medium text-zinc-600 mb-1 block">Início *</label><input required type="date" className={inp} value={form.dataInicio} onChange={e => s('dataInicio', e.target.value)} /></div>
-          <div><label className="text-xs font-medium text-zinc-600 mb-1 block">Fim *</label><input required type="date" className={inp} value={form.dataFim} onChange={e => s('dataFim', e.target.value)} /></div>
+          <div><label className="text-xs font-medium text-slate-600 mb-1 block">Início *</label><input required type="date" className={inp} value={form.dataInicio} onChange={e => s('dataInicio', e.target.value)} /></div>
+          <div><label className="text-xs font-medium text-slate-600 mb-1 block">Fim *</label><input required type="date" className={inp} value={form.dataFim} onChange={e => s('dataFim', e.target.value)} /></div>
         </div>
       </section>
 
@@ -962,15 +968,45 @@ function CampanhaCreateForm({ onSuccess, onError }: { onSuccess: () => void; onE
           {(['todos', 'especificos', 'grupos'] as const).map(opt => (
             <button key={opt} type="button" onClick={() => s('atribuicao', opt)}
               className={cn('flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border transition-all',
-                form.atribuicao === opt ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-stone-200 text-zinc-600 hover:border-amber-300')}>
+                form.atribuicao === opt ? 'bg-[#0A2540] border-[#0A2540] text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300')}>
               {opt === 'todos' ? 'Todos' : opt === 'especificos' ? 'Específicos' : 'Grupos'}
             </button>
           ))}
         </div>
       </section>
 
+      {/* Segmentation */}
+      <section>
+        <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Segmentação (Opcional)</h4>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Sexo</label>
+              <select className={inp} value={form.sexo} onChange={e => s('sexo', e.target.value)}>
+                <option value="todos">Todos</option>
+                <option value="masculino">Masculino</option>
+                <option value="feminino">Feminino</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Prioridade</label>
+              <select className={inp} value={form.prioridade} onChange={e => s('prioridade', e.target.value)}>
+                <option value="HIGH">Alta</option>
+                <option value="MEDIUM">Média</option>
+                <option value="LOW">Baixa</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs font-medium text-slate-600 mb-1 block">Idade Mínima</label><input type="number" min="0" max="120" className={inp} placeholder="Ex: 18" value={form.idadeMin} onChange={e => s('idadeMin', e.target.value)} /></div>
+            <div><label className="text-xs font-medium text-slate-600 mb-1 block">Idade Máxima</label><input type="number" min="0" max="120" className={inp} placeholder="Ex: 65" value={form.idadeMax} onChange={e => s('idadeMax', e.target.value)} /></div>
+          </div>
+          <div><label className="text-xs font-medium text-slate-600 mb-1 block">Estados (UFs separadas por vírgula)</label><input type="text" className={inp} placeholder="Ex: SP, RJ, MG" value={form.estados} onChange={e => s('estados', e.target.value)} /></div>
+        </div>
+      </section>
+
       <button type="submit" disabled={submitting}
-        className="w-full flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-700 text-white font-medium py-2.5 rounded-xl shadow-lg shadow-zinc-200 disabled:opacity-60 text-sm">
+        className="w-full flex items-center justify-center gap-2 bg-[#0A2540] hover:bg-zinc-700 text-white font-medium py-2.5 rounded-xl shadow-lg shadow-zinc-200 disabled:opacity-60 text-sm">
         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
         Criar Campanha
       </button>

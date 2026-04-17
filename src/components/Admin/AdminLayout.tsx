@@ -56,21 +56,21 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 flex font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] flex font-sans">
       {/* ── Sidebar ── */}
       <aside className={cn(
-        'fixed top-0 left-0 h-full bg-white border-r border-stone-200 flex flex-col z-20 transition-all duration-200',
+        'fixed top-0 left-0 h-full bg-[#0A2540] border-r border-blue-900/20 flex flex-col z-20 transition-all duration-200',
         collapsed ? 'w-14' : 'w-56'
       )}>
         {/* Brand */}
-        <div className="flex items-center gap-2.5 px-4 h-14 border-b border-stone-100 flex-shrink-0">
-          <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+        <div className="flex items-center gap-2.5 px-4 h-14 border-b border-blue-800/30 flex-shrink-0">
+          <div className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+            <span className="text-[13px] font-light text-[#60A5FA]">武</span>
           </div>
           {!collapsed && (
             <div>
-              <p className="text-[14px] font-bold text-zinc-900 tracking-tight leading-none">Indika</p>
-              <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-widest">Admin</p>
+              <p className="text-[14px] font-bold text-white tracking-tight leading-none">Indika</p>
+              <p className="text-[9px] font-semibold text-white/70 uppercase tracking-widest">Admin</p>
             </div>
           )}
         </div>
@@ -78,7 +78,7 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
         {/* Nav */}
         <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
           {!collapsed && (
-            <p className="px-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Gestão</p>
+            <p className="px-2 text-[10px] font-semibold text-white/50 uppercase tracking-wider mb-2">Gestão</p>
           )}
           {nav.map(item => {
             const isActive = activeSection && sectionMap[activeSection] === item.href;
@@ -90,12 +90,12 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
                 className={cn(
                   'flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all',
                   isActive
-                    ? 'bg-amber-50 text-amber-700'
-                    : 'text-zinc-500 hover:bg-stone-50 hover:text-zinc-900',
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/80 hover:bg-white/5 hover:text-white',
                   item.soon && 'opacity-40 pointer-events-none'
                 )}
               >
-                <span className={cn('flex-shrink-0', isActive ? 'text-amber-600' : 'text-zinc-400')}>
+                <span className={cn('flex-shrink-0', isActive ? 'text-white' : 'text-white/70')}>
                   {item.icon}
                 </span>
                 {!collapsed && <span className="truncate">{item.label}</span>}
@@ -104,9 +104,9 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
           })}
 
           {/* Finance section */}
-          <div className="pt-3 mt-2 border-t border-stone-100 space-y-0.5">
+          <div className="pt-3 mt-2 border-t border-blue-800/30 space-y-0.5">
             {!collapsed && (
-              <p className="px-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Financeiro</p>
+              <p className="px-2 text-[10px] font-semibold text-white/50 uppercase tracking-wider mb-2">Financeiro</p>
             )}
             {financeNav.map(item => {
               const isActive = activeSection && sectionMap[activeSection] === item.href;
@@ -118,11 +118,11 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
                   className={cn(
                     'flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all',
                     isActive
-                      ? 'bg-amber-50 text-amber-700'
-                      : 'text-zinc-500 hover:bg-stone-50 hover:text-zinc-900'
+                      ? 'bg-white/10 text-white'
+                      : 'text-white/80 hover:bg-white/5 hover:text-white'
                   )}
                 >
-                  <span className={cn('flex-shrink-0', isActive ? 'text-amber-600' : 'text-zinc-400')}>
+                  <span className={cn('flex-shrink-0', isActive ? 'text-white' : 'text-white/70')}>
                     {item.icon}
                   </span>
                   {!collapsed && <span className="truncate">{item.label}</span>}
@@ -132,14 +132,14 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
           </div>
 
           {/* Divider */}
-          <div className="pt-3 mt-2 border-t border-stone-100">
+          <div className="pt-3 mt-2 border-t border-blue-800/30">
             {!collapsed && (
-              <p className="px-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Acesso</p>
+              <p className="px-2 text-[10px] font-semibold text-white/50 uppercase tracking-wider mb-2">Acesso</p>
             )}
             <Link
               to="/user"
               title={collapsed ? 'Área do Usuário' : undefined}
-              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-zinc-400 hover:bg-stone-50 hover:text-zinc-900 transition-all"
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-white/80 hover:bg-white/5 hover:text-white transition-all"
             >
               <User className="w-[18px] h-[18px] flex-shrink-0" />
               {!collapsed && <span>Ver como Usuário</span>}
@@ -148,17 +148,17 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
         </nav>
 
         {/* User info + Logout */}
-        <div className="flex-shrink-0 border-t border-stone-100 p-2 space-y-1">
+        <div className="flex-shrink-0 border-t border-blue-800/30 p-2 space-y-1">
           {!collapsed && (
-            <div className="px-2.5 py-2.5 rounded-lg bg-zinc-950 mb-1">
-              <p className="text-xs font-semibold text-zinc-200 truncate">{profile?.nome} {profile?.sobrenome}</p>
-              <p className="text-[10px] text-zinc-500 truncate">{profile?.email}</p>
+            <div className="px-2.5 py-2.5 rounded-lg bg-white/10 mb-1">
+              <p className="text-xs font-semibold text-white truncate">{profile?.nome} {profile?.sobrenome}</p>
+              <p className="text-[10px] text-white/70 truncate">{profile?.email}</p>
             </div>
           )}
           <button
             onClick={() => signOut(auth)}
             title={collapsed ? 'Sair' : undefined}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-medium text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-medium text-white/80 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all"
           >
             <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
             {!collapsed && <span>Sair</span>}
@@ -167,7 +167,7 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
           {/* Collapse toggle */}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="w-full flex items-center justify-center py-1 text-stone-300 hover:text-zinc-500 transition-colors"
+            className="w-full flex items-center justify-center py-1 text-white/50 hover:text-white/80 transition-colors"
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>

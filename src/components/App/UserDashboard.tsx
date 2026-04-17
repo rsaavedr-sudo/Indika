@@ -5,7 +5,6 @@ import { auth, db } from '../../firebase';
 import WithdrawPage from './WithdrawPage';
 import StatementPage from './StatementPage';
 import UserSettings from './UserSettings';
-import SurveysPage from './SurveysPage';
 import { getFaixaByPontos, getFaixaProgress, getPontosParaProxima, DEFAULT_FAIXAS } from '../../utils/faixas';
 import {
   collection,
@@ -89,7 +88,7 @@ interface Participation {
   id: string;
   campanhaId: string;
   userId: string;
-  status: 'registrado' | 'contactado' | 'venda_realizada' | 'rechazado';
+  status: 'registrado' | 'contactado' | 'venda_realizada' | 'rechazado' | 'available' | 'accepted' | 'rejected' | 'completed';
   notas?: string;
   createdAt: any;
 }
@@ -117,7 +116,7 @@ interface MissaoParticipation {
   createdAt: any;
 }
 
-type Section = 'home' | 'campanhas' | 'missoes' | 'historial' | 'comprar' | 'loja' | 'sacar' | 'extrato' | 'configuracoes' | 'pesquisas';
+type Section = 'home' | 'campanhas' | 'missoes' | 'comprar' | 'loja' | 'sacar' | 'extrato' | 'configuracoes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -126,13 +125,21 @@ const PART_LABELS: Record<string, string> = {
   contactado: 'Em Contato',
   venda_realizada: 'Concluída',
   rechazado: 'Recusado',
+  available: 'Disponível',
+  accepted: 'Aceita',
+  rejected: 'Rejeitada',
+  completed: 'Concluída',
 };
 
 const PART_STYLES: Record<string, string> = {
-  registrado: 'bg-zinc-100 text-zinc-600 border-zinc-200',
-  contactado: 'bg-amber-50 text-amber-700 border-amber-200',
+  registrado: 'bg-slate-100 text-slate-600 border-slate-200',
+  contactado: 'bg-blue-50 text-blue-700 border-blue-200',
   venda_realizada: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   rechazado: 'bg-red-50 text-red-600 border-red-200',
+  available: 'bg-slate-100 text-slate-600 border-slate-200',
+  accepted: 'bg-blue-50 text-blue-700 border-blue-200',
+  rejected: 'bg-red-50 text-red-600 border-red-200',
+  completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
 const PART_ICONS: Record<string, React.ReactNode> = {
@@ -140,6 +147,10 @@ const PART_ICONS: Record<string, React.ReactNode> = {
   contactado: <TrendingUp className="w-3 h-3" />,
   venda_realizada: <BadgeCheck className="w-3 h-3" />,
   rechazado: <CircleSlash className="w-3 h-3" />,
+  available: <Target className="w-3 h-3" />,
+  accepted: <CheckCircle2 className="w-3 h-3" />,
+  rejected: <CircleSlash className="w-3 h-3" />,
+  completed: <BadgeCheck className="w-3 h-3" />,
 };
 
 function effectivePontos(c: Campanha) { return c.pontos_tier1 ?? c.pontos ?? 0; }
@@ -150,11 +161,9 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode; dividerBef
   { id: 'home',      label: 'Início',         icon: <Home className="w-[18px] h-[18px]" /> },
   { id: 'campanhas', label: 'Campanhas',       icon: <Layers className="w-[18px] h-[18px]" /> },
   { id: 'missoes',   label: 'Missões',         icon: <Target className="w-[18px] h-[18px]" /> },
-  { id: 'historial', label: 'Histórico',       icon: <Activity className="w-[18px] h-[18px]" /> },
   { id: 'comprar',   label: 'Comprar Pontos',  icon: <Sparkles className="w-[18px] h-[18px]" /> },
   { id: 'loja',      label: 'Loja Virtual',    icon: <Gift className="w-[18px] h-[18px]" /> },
-  { id: 'pesquisas',      label: 'Pesquisas',       icon: <ClipboardList className="w-[18px] h-[18px]" />, dividerBefore: true },
-  { id: 'sacar',          label: 'Sacar Pontos',    icon: <DollarSign className="w-[18px] h-[18px]" /> },
+  { id: 'sacar',          label: 'Sacar Pontos',    icon: <DollarSign className="w-[18px] h-[18px]" />, dividerBefore: true },
   { id: 'extrato',        label: 'Extrato',         icon: <ReceiptText className="w-[18px] h-[18px]" /> },
   { id: 'configuracoes',  label: 'Configurações',   icon: <Settings className="w-[18px] h-[18px]" /> },
 ];
@@ -179,7 +188,7 @@ export default function UserDashboard() {
     setSidebarOpen(false);
   };
 
-  if (!authLoading && !user) return <Navigate to="/login" replace />;
+  // ── Hooks must all be declared before any conditional return ──────────────
 
   useEffect(() => {
     if (toast) {
@@ -196,8 +205,10 @@ export default function UserDashboard() {
       where('userId', '==', user.uid),
       orderBy('createdAt', 'desc')
     );
-    const unsubTrans = onSnapshot(qTrans, snap =>
-      setTransacoes(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Transacao[])
+    const unsubTrans = onSnapshot(
+      qTrans,
+      snap => setTransacoes(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Transacao[]),
+      err => console.warn('[UserDashboard] transacoes listener:', err.message)
     );
 
     const qCamps = query(
@@ -205,17 +216,26 @@ export default function UserDashboard() {
       where('status', '==', 'ativa'),
       orderBy('createdAt', 'desc')
     );
-    const unsubCamps = onSnapshot(qCamps, snap => {
-      setCampanhas(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Campanha[]);
-      setLoading(false);
-    });
+    const unsubCamps = onSnapshot(
+      qCamps,
+      snap => {
+        setCampanhas(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Campanha[]);
+        setLoading(false);
+      },
+      err => {
+        console.warn('[UserDashboard] campanhas listener:', err.message);
+        setLoading(false);
+      }
+    );
 
     const qPart = query(
       collection(db, 'campaign_participations'),
       where('userId', '==', user.uid)
     );
-    const unsubPart = onSnapshot(qPart, snap =>
-      setParticipations(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Participation[])
+    const unsubPart = onSnapshot(
+      qPart,
+      snap => setParticipations(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Participation[]),
+      err => console.warn('[UserDashboard] participations listener:', err.message)
     );
 
     return () => { unsubTrans(); unsubCamps(); unsubPart(); };
@@ -232,12 +252,12 @@ export default function UserDashboard() {
         userName: `${profile.nome} ${profile.sobrenome}`,
         userEmail: profile.email || '',
         organizationId: profile.organizationId,
-        status: 'registrado',
+        status: 'accepted',
         notas: '',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      setToast({ msg: `Inscrito em "${camp.nome}"!`, ok: true });
+      setToast({ msg: `Aceitou "${camp.nome}"!`, ok: true });
       setSelectedCamp(null);
     } catch {
       setToast({ msg: 'Erro ao participar. Tente novamente.', ok: false });
@@ -246,20 +266,47 @@ export default function UserDashboard() {
     }
   };
 
+  const handleReject = async (camp: Campanha) => {
+    if (!user || !profile) return;
+    setJoining(true);
+    try {
+      await addDoc(collection(db, 'campaign_participations'), {
+        campanhaId: camp.id,
+        userId: user.uid,
+        userName: `${profile.nome} ${profile.sobrenome}`,
+        userEmail: profile.email || '',
+        organizationId: profile.organizationId,
+        status: 'rejected',
+        notas: '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      setToast({ msg: `Rejeitou "${camp.nome}".`, ok: true });
+      setSelectedCamp(null);
+    } catch {
+      setToast({ msg: 'Erro ao rejeitar. Tente novamente.', ok: false });
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  // ── Safe conditional returns AFTER all hooks ─────────────────────────────
+  if (!authLoading && !user) return <Navigate to="/login" replace />;
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
-            <Trophy className="w-5 h-5 text-amber-400" />
+          <div className="w-10 h-10 bg-[#0A2540] rounded-xl flex items-center justify-center">
+            <span className="text-[#60A5FA] font-bold text-xs">武</span>
           </div>
-          <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+          <Loader2 className="w-5 h-5 animate-spin text-white/50" />
         </div>
       </div>
     );
   }
 
-  const activeCampanhas = campanhas.filter(c => !participations.find(p => p.campanhaId === c.id && p.status === 'rechazado'));
+  const activeCampanhas = campanhas.filter(c => !participations.find(p => p.campanhaId === c.id && (p.status === 'rechazado' || p.status === 'rejected')));
   const myCampanhas = campanhas.filter(c => participations.find(p => p.campanhaId === c.id));
   const pontos = profile?.pontos || 0;
   const faixa = getFaixaByPontos(pontos, DEFAULT_FAIXAS);
@@ -269,7 +316,7 @@ export default function UserDashboard() {
   const nextFaixa = DEFAULT_FAIXAS[faixaIdx + 1] || null;
 
   return (
-    <div className="min-h-screen bg-stone-50 flex font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] flex font-sans">
 
       {/* ── Sidebar overlay (mobile) ─────────── */}
       <AnimatePresence>
@@ -284,45 +331,45 @@ export default function UserDashboard() {
 
       {/* ── Sidebar ──────────────────────────── */}
       <aside className={cn(
-        'fixed inset-y-0 left-0 z-40 w-60 bg-white border-r border-stone-200 flex flex-col transition-transform duration-300 lg:translate-x-0',
+        'fixed inset-y-0 left-0 z-40 w-60 bg-[#0A2540] border-r border-blue-900/20 flex flex-col transition-transform duration-300 lg:translate-x-0',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
 
         {/* Brand */}
-        <div className="h-14 flex items-center gap-2.5 px-5 border-b border-stone-100">
-          <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center">
-            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+        <div className="h-14 flex items-center gap-2.5 px-5 border-b border-blue-800/30">
+          <div className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center">
+            <span className="text-[13px] font-light text-[#60A5FA]">武</span>
           </div>
-          <span className="text-[15px] font-bold text-zinc-900 tracking-tight">Indika</span>
+          <span className="text-[15px] font-bold text-white tracking-tight">Indika</span>
         </div>
 
         {/* User info */}
-        <div className="px-4 pt-4 pb-3 border-b border-stone-100">
+        <div className="px-4 pt-4 pb-3 border-b border-blue-800/30">
           <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center flex-shrink-0">
-              <span className="text-amber-400 font-bold text-xs">
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+              <span className="text-[#60A5FA] font-bold text-xs">
                 {(profile?.nome?.[0] || '?').toUpperCase()}
               </span>
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-zinc-900 truncate leading-tight">{profile?.nome} {profile?.sobrenome}</p>
-              <p className="text-[11px] text-zinc-400 truncate">{profile?.email}</p>
+              <p className="text-sm font-semibold text-white truncate leading-tight">{profile?.nome} {profile?.sobrenome}</p>
+              <p className="text-[11px] text-white/70 truncate">{profile?.email}</p>
             </div>
           </div>
           {/* Points + faixa */}
-          <div className="bg-zinc-950 rounded-xl p-3">
-            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-0.5">Pontos</p>
+          <div className="bg-white/10 rounded-xl p-3">
+            <p className="text-[10px] font-semibold text-white/70 uppercase tracking-widest mb-0.5">Pontos</p>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-xl font-black text-amber-400 leading-none">{pontos.toLocaleString('pt-BR')}</span>
-              <span className="text-[11px] text-zinc-600">pts</span>
+              <span className="text-xl font-black text-[#60A5FA] leading-none">{pontos.toLocaleString('pt-BR')}</span>
+              <span className="text-[11px] text-white/80">pts</span>
             </div>
             <div className="flex items-center gap-1.5 mt-2">
               <span className="text-sm">{faixa.emoji}</span>
-              <span className="text-[11px] font-medium text-zinc-400">{faixa.nome}</span>
+              <span className="text-[11px] font-medium text-white/70">{faixa.nome}</span>
             </div>
             {/* mini progress bar */}
-            <div className="w-full bg-zinc-800 rounded-full h-1 mt-2 overflow-hidden">
-              <div className="h-full bg-amber-400 rounded-full transition-all" style={{ width: `${progress}%` }} />
+            <div className="w-full bg-blue-900/40 rounded-full h-1 mt-2 overflow-hidden">
+              <div className="h-full bg-[#60A5FA] rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
         </div>
@@ -331,24 +378,24 @@ export default function UserDashboard() {
         <nav className="flex-1 p-2.5 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map(item => (
             <React.Fragment key={item.id}>
-              {item.dividerBefore && <div className="border-t border-stone-100 my-2" />}
+              {item.dividerBefore && <div className="border-t border-blue-800/30 my-2" />}
               <button
                 onClick={() => setSection(item.id)}
                 className={cn(
                   'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all text-left',
                   activeSection === item.id
-                    ? 'bg-amber-50 text-amber-700'
-                    : 'text-zinc-500 hover:text-zinc-900 hover:bg-stone-50'
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/80 hover:text-white hover:bg-white/5'
                 )}
               >
-                <span className={activeSection === item.id ? 'text-amber-600' : 'text-zinc-400'}>
+                <span className={activeSection === item.id ? 'text-white' : 'text-white/70'}>
                   {item.icon}
                 </span>
                 {item.label}
                 {item.id === 'campanhas' && myCampanhas.length > 0 && (
                   <span className={cn(
                     'ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                    activeSection === item.id ? 'bg-amber-200 text-amber-800' : 'bg-stone-200 text-zinc-600'
+                    activeSection === item.id ? 'bg-blue-400/30 text-white' : 'bg-blue-900/30 text-white/80'
                   )}>{myCampanhas.length}</span>
                 )}
               </button>
@@ -358,7 +405,7 @@ export default function UserDashboard() {
           {profile?.role === 'admin' && (
             <Link
               to="/admin"
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-zinc-400 hover:text-zinc-900 hover:bg-stone-50 transition-all mt-2 border-t border-stone-100 pt-3"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-white/80 hover:text-white hover:bg-white/5 transition-all mt-2 border-t border-blue-800/30 pt-3"
             >
               <LayoutDashboard className="w-[18px] h-[18px]" />
               Painel Admin
@@ -367,10 +414,10 @@ export default function UserDashboard() {
         </nav>
 
         {/* Logout */}
-        <div className="p-2.5 border-t border-stone-100">
+        <div className="p-2.5 border-t border-blue-800/30">
           <button
             onClick={() => signOut(auth)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-all"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-white/80 hover:text-red-300 hover:bg-red-900/20 transition-all"
           >
             <LogOut className="w-[18px] h-[18px]" />
             Sair
@@ -382,54 +429,54 @@ export default function UserDashboard() {
       <div className="flex-1 flex flex-col min-h-screen lg:ml-60">
 
         {/* Top bar (mobile) */}
-        <header className="lg:hidden h-14 bg-white border-b border-stone-200 flex items-center justify-between px-4 sticky top-0 z-20">
-          <button onClick={() => setSidebarOpen(true)} className="p-1.5 text-zinc-500 hover:bg-stone-100 rounded-lg">
+        <header className="lg:hidden h-14 bg-[#0A2540] border-b border-blue-900/20 flex items-center justify-between px-4 sticky top-0 z-20">
+          <button onClick={() => setSidebarOpen(true)} className="p-1.5 text-white/70 hover:bg-white/5 rounded-lg">
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center">
-              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <div className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center">
+              <span className="text-[#60A5FA] font-light text-xs">武</span>
             </div>
-            <span className="font-bold text-zinc-900 text-sm">Indika</span>
+            <span className="font-bold text-white text-sm">Indika</span>
           </div>
-          <div className="flex items-center gap-1.5 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-100">
-            <Award className="w-3.5 h-3.5 text-amber-500" />
-            <span className="text-xs font-bold text-amber-700">{pontos.toLocaleString('pt-BR')}</span>
+          <div className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg border border-blue-400/20">
+            <Award className="w-3.5 h-3.5 text-[#60A5FA]" />
+            <span className="text-xs font-bold text-[#60A5FA]">{pontos.toLocaleString('pt-BR')}</span>
           </div>
         </header>
 
         {/* ── Hero ─────────────────────────────── */}
-        <div className="bg-zinc-950 relative overflow-hidden">
+        <div className="bg-[#0A2540] relative overflow-hidden">
           {/* Decorative shapes */}
-          <div className="absolute top-0 right-0 w-[320px] h-[320px] bg-zinc-900 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-          <div className="absolute bottom-0 left-1/2 w-48 h-48 bg-zinc-900 rounded-full translate-y-1/2 pointer-events-none opacity-50" />
+          <div className="absolute top-0 right-0 w-[320px] h-[320px] bg-[#1E3A8A] rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+          <div className="absolute bottom-0 left-1/2 w-48 h-48 bg-[#1E3A8A] rounded-full translate-y-1/2 pointer-events-none opacity-50" />
 
           <div className="relative z-10 max-w-5xl mx-auto px-6 pt-8 pb-6">
-            <p className="text-zinc-500 text-sm font-medium mb-4">
-              Olá, <span className="text-zinc-300">{profile?.nome}</span>
+            <p className="text-white/70 text-sm font-medium mb-4">
+              Olá, <span className="text-white">{profile?.nome}</span>
             </p>
 
             <div className="flex flex-wrap items-end gap-x-8 gap-y-4 mb-8">
               {/* Big points */}
               <div>
-                <p className="text-[11px] font-semibold text-zinc-600 uppercase tracking-widest mb-1">Pontos acumulados</p>
+                <p className="text-[11px] font-semibold text-white/70 uppercase tracking-widest mb-1">Pontos acumulados</p>
                 <div className="flex items-end gap-2">
-                  <span className="text-6xl font-black text-amber-400 tracking-tighter leading-none">
+                  <span className="text-6xl font-black text-[#60A5FA] tracking-tighter leading-none">
                     {pontos.toLocaleString('pt-BR')}
                   </span>
-                  <span className="text-zinc-500 text-lg mb-1">pts</span>
+                  <span className="text-white/80 text-lg mb-1">pts</span>
                 </div>
               </div>
               {/* Divider */}
-              <div className="hidden sm:block w-px h-12 bg-zinc-800" />
+              <div className="hidden sm:block w-px h-12 bg-blue-900/40" />
               {/* Stats */}
               <div className="flex gap-6">
                 <div>
-                  <p className="text-[11px] font-semibold text-zinc-600 uppercase tracking-widest mb-1">Campanhas</p>
+                  <p className="text-[11px] font-semibold text-white/70 uppercase tracking-widest mb-1">Campanhas</p>
                   <p className="text-3xl font-bold text-white">{activeCampanhas.length}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold text-zinc-600 uppercase tracking-widest mb-1">Participações</p>
+                  <p className="text-[11px] font-semibold text-white/70 uppercase tracking-widest mb-1">Participações</p>
                   <p className="text-3xl font-bold text-white">{participations.length}</p>
                 </div>
               </div>
@@ -439,46 +486,46 @@ export default function UserDashboard() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-lg">{faixa.emoji}</span>
-                <span className="text-sm font-semibold text-zinc-300">{faixa.nome}</span>
+                <span className="text-sm font-semibold text-white">{faixa.nome}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                <div className="w-full bg-blue-900/40 rounded-full h-1.5 overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
-                    className="h-full bg-amber-400 rounded-full"
+                    className="h-full bg-[#60A5FA] rounded-full"
                   />
                 </div>
               </div>
               {nextFaixa ? (
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <span className="text-sm opacity-40">{nextFaixa.emoji}</span>
-                  <span className="text-[11px] text-zinc-500">
+                  <span className="text-[11px] text-white/80">
                     {pontosRestantes.toLocaleString('pt-BR')} pts
                   </span>
                 </div>
               ) : (
-                <span className="text-[11px] text-amber-400 font-semibold flex-shrink-0">Nível máximo</span>
+                <span className="text-[11px] text-[#60A5FA] font-semibold flex-shrink-0">Nível máximo</span>
               )}
             </div>
           </div>
         </div>
 
         {/* ── Mobile bottom nav ────────────────── */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-stone-200 flex">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-slate-200 flex">
           {NAV_ITEMS.slice(0, 5).map(item => (
             <button
               key={item.id}
               onClick={() => setSection(item.id)}
               className={cn(
                 'flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[9px] font-medium transition-colors',
-                activeSection === item.id ? 'text-amber-600' : 'text-zinc-400'
+                activeSection === item.id ? 'text-[#0A2540]' : 'text-slate-400'
               )}
             >
               <span className={cn(
                 'w-8 h-7 flex items-center justify-center rounded-lg transition-colors',
-                activeSection === item.id ? 'bg-amber-50' : ''
+                activeSection === item.id ? 'bg-blue-50' : ''
               )}>{item.icon}</span>
               {item.label.split(' ')[0]}
             </button>
@@ -511,15 +558,11 @@ export default function UserDashboard() {
                   onBrowse={() => setSection('home')}
                 />
               )}
-              {activeSection === 'historial' && (
-                <HistorialSection transacoes={transacoes} />
-              )}
               {activeSection === 'comprar' && <ComprarSection />}
               {activeSection === 'loja' && <LojaSection />}
               {activeSection === 'missoes' && (
                 <MissoesSection userId={user?.uid || ''} pontos={pontos} />
               )}
-              {activeSection === 'pesquisas' && <SurveysPage />}
               {activeSection === 'sacar' && <WithdrawPage />}
               {activeSection === 'extrato' && <StatementPage />}
               {activeSection === 'configuracoes' && <UserSettings />}
@@ -537,11 +580,11 @@ export default function UserDashboard() {
             exit={{ opacity: 0, y: 20, x: '-50%' }}
             className={cn(
               'fixed bottom-24 lg:bottom-8 left-1/2 z-50 px-5 py-3 rounded-xl shadow-2xl font-semibold flex items-center gap-2.5 text-sm min-w-[260px] justify-center',
-              toast.ok ? 'bg-zinc-900 text-white' : 'bg-red-600 text-white'
+              toast.ok ? 'bg-[#0A2540] text-white' : 'bg-red-600 text-white'
             )}
           >
             {toast.ok
-              ? <CheckCircle2 className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              ? <CheckCircle2 className="w-4 h-4 text-[#60A5FA] flex-shrink-0" />
               : <X className="w-4 h-4 flex-shrink-0" />}
             {toast.msg}
           </motion.div>
@@ -557,6 +600,7 @@ export default function UserDashboard() {
             joining={joining}
             onClose={() => setSelectedCamp(null)}
             onParticipate={() => handleParticipate(selectedCamp)}
+            onReject={() => handleReject(selectedCamp)}
           />
         )}
       </AnimatePresence>
@@ -651,10 +695,10 @@ function CampaignCard({
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.99 }}
       onClick={onClick}
-      className="bg-white rounded-xl border border-stone-200 overflow-hidden hover:shadow-md hover:border-stone-300 transition-all cursor-pointer group"
+      className="bg-white rounded-xl border border-blue-100 overflow-hidden hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group"
     >
       {/* Image */}
-      <div className="relative w-full bg-stone-100" style={{ height: 160 }}>
+      <div className="relative w-full bg-slate-100" style={{ height: 160 }}>
         {camp.imagemUrl ? (
           <img
             src={camp.imagemUrl}
@@ -663,12 +707,12 @@ function CampaignCard({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Layers className="w-10 h-10 text-stone-300" />
+            <Layers className="w-10 h-10 text-slate-300" />
           </div>
         )}
         {/* Points badge */}
         <div className="absolute top-3 left-3">
-          <span className="flex items-center gap-1 px-2 py-1 bg-zinc-950/90 backdrop-blur-sm text-amber-400 text-xs font-bold rounded-lg">
+          <span className="flex items-center gap-1 px-2 py-1 bg-[#0A2540]/90 backdrop-blur-sm text-[#60A5FA] text-xs font-bold rounded-lg">
             <Zap className="w-3 h-3" />+{pontos} pts
           </span>
         </div>
@@ -690,15 +734,15 @@ function CampaignCard({
       {/* Content */}
       <div className="p-4">
         {camp.empresa && (
-          <p className="text-[11px] text-zinc-400 flex items-center gap-1 mb-1">
+          <p className="text-[11px] text-slate-500 flex items-center gap-1 mb-1">
             <Building2 className="w-3 h-3" />{camp.empresa}
           </p>
         )}
-        <h3 className="font-bold text-zinc-900 text-sm leading-snug mb-1 line-clamp-1">{camp.nome}</h3>
-        <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed mb-3">{camp.descricao}</p>
+        <h3 className="font-bold text-slate-900 text-sm leading-snug mb-1 line-clamp-1">{camp.nome}</h3>
+        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-3">{camp.descricao}</p>
 
         <div className="flex items-center justify-between">
-          <p className="text-[11px] text-zinc-400 flex items-center gap-1">
+          <p className="text-[11px] text-slate-500 flex items-center gap-1">
             <Calendar className="w-3 h-3" />
             até {camp.dataFim?.toDate?.().toLocaleDateString('pt-BR') || '—'}
           </p>
@@ -707,7 +751,7 @@ function CampaignCard({
               {PART_ICONS[participation.status]}{PART_LABELS[participation.status]}
             </span>
           ) : (
-            <span className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-zinc-900 text-white rounded-lg group-hover:bg-zinc-700 transition-colors">
+            <span className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-[#0A2540] text-white rounded-lg group-hover:bg-[#1E3A8A] transition-colors">
               Participar <ChevronRight className="w-3 h-3" />
             </span>
           )}
@@ -737,9 +781,9 @@ function MyCampanhasSection({
     })
     .filter(Boolean) as { camp: Campanha; participation: Participation }[];
 
-  const inProgress = joined.filter(j => ['registrado', 'contactado'].includes(j.participation.status));
-  const completed   = joined.filter(j => j.participation.status === 'venda_realizada');
-  const rejected    = joined.filter(j => j.participation.status === 'rechazado');
+  const inProgress = joined.filter(j => ['registrado', 'contactado', 'accepted'].includes(j.participation.status));
+  const completed   = joined.filter(j => ['venda_realizada', 'completed'].includes(j.participation.status));
+  const rejected    = joined.filter(j => ['rechazado', 'rejected'].includes(j.participation.status));
 
   if (joined.length === 0) {
     return (
@@ -823,24 +867,24 @@ function CampaignListRow({
     <motion.div
       whileHover={{ x: 2 }}
       onClick={onClick}
-      className="flex items-center gap-3 bg-white rounded-xl border border-stone-200 overflow-hidden p-3 cursor-pointer hover:border-stone-300 hover:shadow-sm transition-all"
+      className="flex items-center gap-3 bg-white rounded-xl border border-blue-100 overflow-hidden p-3 cursor-pointer hover:border-blue-200 hover:shadow-sm transition-all"
     >
       {camp.imagemUrl ? (
         <img src={camp.imagemUrl} alt={camp.nome} className="w-12 h-10 object-cover rounded-lg flex-shrink-0" />
       ) : (
-        <div className="w-12 h-10 bg-stone-100 rounded-lg flex items-center justify-center flex-shrink-0">
-          <Layers className="w-4 h-4 text-stone-400" />
+        <div className="w-12 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+          <Layers className="w-4 h-4 text-slate-400" />
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-zinc-900 text-sm truncate">{camp.nome}</p>
-        {camp.empresa && <p className="text-xs text-zinc-400 truncate">{camp.empresa}</p>}
+        <p className="font-semibold text-slate-900 text-sm truncate">{camp.nome}</p>
+        {camp.empresa && <p className="text-xs text-slate-500 truncate">{camp.empresa}</p>}
       </div>
       <div className="flex flex-col items-end gap-1 flex-shrink-0">
         <span className={cn('flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg border', PART_STYLES[participation.status])}>
           {PART_ICONS[participation.status]}{PART_LABELS[participation.status]}
         </span>
-        <span className="text-[11px] text-amber-600 font-bold">+{effectivePontos(camp)} pts</span>
+        <span className="text-[11px] text-blue-700 font-bold">+{effectivePontos(camp)} pts</span>
       </div>
     </motion.div>
   );
@@ -1173,12 +1217,14 @@ function CampaignModal({
   joining,
   onClose,
   onParticipate,
+  onReject,
 }: {
   camp: Campanha;
   participation?: Participation;
   joining: boolean;
   onClose: () => void;
   onParticipate: () => void;
+  onReject: () => void;
 }) {
   const pontos = effectivePontos(camp);
 
@@ -1209,7 +1255,7 @@ function CampaignModal({
               <img src={camp.imagemUrl} alt={camp.nome} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-4 left-5">
-                <span className="flex items-center gap-1.5 w-fit px-2.5 py-1 bg-zinc-950/90 backdrop-blur-sm text-amber-400 text-sm font-bold rounded-lg mb-2">
+                <span className="flex items-center gap-1.5 w-fit px-2.5 py-1 bg-[#0A2540]/90 backdrop-blur-sm text-[#60A5FA] text-sm font-bold rounded-lg mb-2">
                   <Zap className="w-3.5 h-3.5" />+{pontos} pts
                 </span>
                 <h3 className="text-xl font-bold text-white leading-tight">{camp.nome}</h3>
@@ -1229,23 +1275,23 @@ function CampaignModal({
           {!camp.imagemUrl && (
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-lg font-bold text-zinc-900">{camp.nome}</h3>
-                <span className="flex items-center gap-1 text-sm font-bold text-amber-600 mt-1">
+                <h3 className="text-lg font-bold text-slate-900">{camp.nome}</h3>
+                <span className="flex items-center gap-1 text-sm font-bold text-blue-700 mt-1">
                   <Zap className="w-4 h-4" />+{pontos} pts
                 </span>
               </div>
-              <button onClick={onClose} className="p-1.5 hover:bg-stone-100 rounded-lg transition-colors">
-                <X className="w-4 h-4 text-zinc-400" />
+              <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-slate-400" />
               </button>
             </div>
           )}
 
           {camp.empresa && (
-            <p className="text-xs text-zinc-400 flex items-center gap-1.5 mb-3">
+            <p className="text-xs text-slate-500 flex items-center gap-1.5 mb-3">
               <Building2 className="w-3 h-3" />{camp.empresa}
             </p>
           )}
-          <p className="text-sm text-zinc-600 leading-relaxed mb-4">{camp.descricao}</p>
+          <p className="text-sm text-slate-600 leading-relaxed mb-4">{camp.descricao}</p>
 
           <div className="space-y-2 mb-4">
             {[
@@ -1254,37 +1300,50 @@ function CampaignModal({
               camp.pontos_tier3 && { label: 'Tier 3', val: `${camp.pontos_tier3} pts — ${camp.meta_tier3 || ''}` },
             ].filter(Boolean).map((row: any) => (
               <div key={row.label} className="flex items-center gap-2 text-sm">
-                <span className="text-zinc-400 w-14 flex-shrink-0">{row.label}</span>
-                <span className="text-zinc-700 font-medium">{row.val}</span>
+                <span className="text-slate-500 w-14 flex-shrink-0">{row.label}</span>
+                <span className="text-slate-700 font-medium">{row.val}</span>
               </div>
             ))}
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-zinc-400 w-14 flex-shrink-0">Período</span>
-              <span className="text-zinc-700 font-medium">
+              <span className="text-slate-500 w-14 flex-shrink-0">Período</span>
+              <span className="text-slate-700 font-medium">
                 {camp.dataInicio?.toDate?.().toLocaleDateString('pt-BR') || '—'} → {camp.dataFim?.toDate?.().toLocaleDateString('pt-BR') || '—'}
               </span>
             </div>
           </div>
 
           {participation ? (
-            <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
               <span className={cn('inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1 rounded-lg border', PART_STYLES[participation.status])}>
                 {PART_ICONS[participation.status]}{PART_LABELS[participation.status]}
               </span>
-              <p className="text-xs text-zinc-400 mt-2">Você já está participando desta campanha.</p>
+              <p className="text-xs text-slate-500 mt-2">Você já está participando desta campanha.</p>
             </div>
           ) : (
-            <button
-              onClick={onParticipate}
-              disabled={joining}
-              className="w-full py-3 bg-zinc-900 hover:bg-zinc-700 active:scale-[0.98] text-white font-bold rounded-xl transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-            >
-              {joining ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Inscrevendo...</>
-              ) : (
-                <><CheckCircle2 className="w-4 h-4 text-amber-400" /> Quero Participar</>
-              )}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={onParticipate}
+                disabled={joining}
+                className="flex-1 py-3 bg-[#0A2540] hover:bg-[#1E3A8A] active:scale-[0.98] text-white font-bold rounded-xl transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {joining ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Aceitando...</>
+                ) : (
+                  <><CheckCircle2 className="w-4 h-4" /> Aceitar Campanha</>
+                )}
+              </button>
+              <button
+                onClick={onReject}
+                disabled={joining}
+                className="flex-1 py-3 bg-white border border-red-200 text-red-600 hover:bg-red-50 active:scale-[0.98] font-bold rounded-xl transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {joining ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Recusando...</>
+                ) : (
+                  <><CircleSlash className="w-4 h-4" /> Rejeitar Campanha</>
+                )}
+              </button>
+            </div>
           )}
         </div>
       </motion.div>

@@ -50,7 +50,7 @@ async function initFirebaseAdmin() {
 
 async function startServer() {
   const app = express();
-  const PORT = 3002;
+  const PORT = 3003;
 
   app.use(express.json());
 
@@ -180,6 +180,11 @@ async function startServer() {
         throw firestoreError;
       }
 
+      // 4. Set custom claims so Firestore rules can check role from JWT token
+      // This avoids circular dependency in security rules (no Firestore read needed)
+      const userRole = userSnap.data()?.role || 'usuario';
+      await admin.auth().setCustomUserClaims(userRecord.uid, { role: userRole });
+
       res.json({ success: true, uid: userRecord.uid });
     } catch (error: any) {
       console.error("Error in production auth creation:", error);
@@ -223,6 +228,29 @@ async function startServer() {
     } catch (error: any) {
       console.error("Error updating auth user:", error);
       sendError(res, 500, error.message, error.code);
+    }
+  });
+
+  // Sync custom claims for ALL admin users in Firestore
+  app.post("/api/admin/auth/sync-claims", async (req, res) => {
+    if (!firebaseAdminInitialized) {
+      return sendError(res, 503, "Firebase Admin not initialized.");
+    }
+    try {
+      const db = admin.firestore();
+      const snapshot = await db.collection('usuarios').where('role', '==', 'admin').get();
+      const results: any[] = [];
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        const uid = data.uid;
+        const email = data.emailLogin || data.email || doc.id;
+        if (!uid) { results.push({ email, status: 'skipped - no uid' }); continue; }
+        await admin.auth().setCustomUserClaims(uid, { role: 'admin' });
+        results.push({ email, uid, status: 'ok' });
+      }
+      res.json({ success: true, synced: results });
+    } catch (error: any) {
+      sendError(res, 500, error.message);
     }
   });
 

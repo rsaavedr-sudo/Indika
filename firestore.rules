@@ -1,3 +1,5 @@
+rules_version = '2';
+
 // ===============================================================
 // Assumed Data Model
 // ===============================================================
@@ -24,20 +26,20 @@ service cloud.firestore {
     // ===============================================================
     // Helper Functions
     // ===============================================================
-    
+
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
-    }
-
+    // isAdmin uses ONLY JWT token claims — zero Firestore reads.
+    // Role is set as a custom claim by the backend (server.ts) when a user is created or updated.
+    // To fix existing admin users, call POST /api/admin/auth/sync-claims.
     function isAdmin() {
       return isAuthenticated() && (
-        (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && getUserData().role == 'admin') || 
-        (request.auth.token.email == "rsaavedr@gmail.com" && request.auth.token.email_verified == true) ||
-        (request.auth.token.email == "admin@indika.com")
+        request.auth.token.email == "rsaavedr@gmail.com" ||
+        request.auth.token.email == "admin@indika.com" ||
+        request.auth.token.email == "rjavier.gil@gmail.com" ||
+        request.auth.token.role == "admin"
       );
     }
 
@@ -71,24 +73,30 @@ service cloud.firestore {
     }
 
     function isValidCampanha(data) {
-      return data.keys().hasAll(['nome', 'descricao', 'pontos', 'status', 'tipo', 'dataInicio', 'dataFim']) &&
+      return data.keys().hasAll(['nome', 'descricao', 'status', 'dataInicio', 'dataFim']) &&
              data.nome is string && data.nome.size() > 0 &&
-             data.descricao is string && data.descricao.size() > 0 &&
-             data.pontos is number && data.pontos > 0 &&
-             data.status in ['ativa', 'inativa'] &&
-             data.tipo in ['indicacao', 'acao_manual', 'bonus', 'promocional'] &&
+             data.descricao is string &&
+             data.status in ['rascunho', 'ativa', 'pausada', 'finalizada', 'inativa'] &&
              data.dataInicio is timestamp &&
              data.dataFim is timestamp;
     }
 
     match /usuarios/{usuarioId} {
-      allow read: if isAuthenticated() && (isOwner(usuarioId) || isAdmin());
+      // Allow read if: doc ID matches auth uid (isOwner),
+      // OR the uid field inside the doc matches auth uid (admin-created users),
+      // OR the requester is an admin.
+      allow read: if isAuthenticated() && (
+        isOwner(usuarioId) ||
+        resource.data.uid == request.auth.uid ||
+        isAdmin()
+      );
       allow create: if isAuthenticated() && (
-        (isOwner(usuarioId) && request.resource.data.role == 'usuario') || 
+        (isOwner(usuarioId) && request.resource.data.role == 'usuario') ||
         isAdmin()
       );
       allow update: if isAuthenticated() && (
-        (isOwner(usuarioId) && request.resource.data.role == resource.data.role) || 
+        (isOwner(usuarioId) && request.resource.data.role == resource.data.role) ||
+        resource.data.uid == request.auth.uid ||
         isAdmin()
       );
     }
@@ -141,6 +149,20 @@ service cloud.firestore {
     match /config/{configId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // Notification queue: users create their own; admins read/update
+    match /notification_queue/{notifId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+    }
+
+    // Withdraw requests
+    match /withdraw_requests/{requestId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.user_id || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAdmin();
     }
   }
 }
