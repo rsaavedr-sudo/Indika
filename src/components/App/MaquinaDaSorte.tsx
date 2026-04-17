@@ -107,9 +107,10 @@ export default function MaquinaDaSorte() {
     fetchLogs();
   }, [profile?.id, played]);
 
+  // Global active + user not explicitly disabled = habilitada
   const isHabilitada =
     config?.ativo &&
-    (profile as any)?.maquinaDaSorteHabilitada === true;
+    (profile as any)?.maquinaDaSorteHabilitada !== false;
 
   const handleSpin = async () => {
     if (!profile?.id || !config || spinning) return;
