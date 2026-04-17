@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Indika Mascot Preview</title>
+<style>
+  body { margin: 0; background: #0d1117; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; gap: 40px; flex-wrap: wrap; padding: 40px; box-sizing: border-box; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 16px; padding: 24px; text-align: center; }
+  h3 { color: #7c8fa6; font-size: 12px; text-transform: uppercase; letter-spacing: 3px; margin: 0 0 16px; }
+  .belt-demo { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
+  .belt { height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-size: 12px; font-weight: 600; letter-spacing: 1px; }
+  .belt span { opacity: 0.8; }
+</style>
+</head>
+<body>
+
+<!-- Main mascot SVG inline -->
+<div class="card">
+  <h3>Mascote Indika — Blue Edition</h3>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 520" width="320" height="347">
+    <!-- Background -->
+    <defs>
+      <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#1a3a5c"/>
+        <stop offset="100%" stop-color="#0d1b2e"/>
+      </radialGradient>
+      <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#1a5276" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="#1a5276" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="480" height="520" fill="url(#bgGrad)" rx="20"/>
+    <!-- Glow effect behind character -->
+    <circle cx="240" cy="280" r="180" fill="url(#glowGrad)"/>
+    <!-- Decorative circles -->
+    <circle cx="240" cy="280" r="195" fill="none" stroke="#1a5276" stroke-width="1.5" stroke-dasharray="8,12"/>
+    <circle cx="240" cy="280" r="158" fill="none" stroke="#0f3460" stroke-width="1"/>
+
+    <!-- ═══ LEGS ═══ -->
+    <!-- Right supporting leg -->
+    <line x1="248" y1="370" x2="235" y2="462" stroke="#c8660a" stroke-width="22" stroke-linecap="round"/>
+    <!-- Right foot -->
+    <ellipse cx="233" cy="465" rx="23" ry="13" fill="#d97818"/>
+    <ellipse cx="220" cy="472" rx="7" ry="5" fill="#c8660a"/>
+    <ellipse cx="232" cy="476" rx="7" ry="5" fill="#c8660a"/>
+    <ellipse cx="244" cy="473" rx="7" ry="5" fill="#c8660a"/>
+
+    <!-- Left raised kick leg -->
+    <line x1="283" y1="345" x2="398" y2="263" stroke="#c8660a" stroke-width="22" stroke-linecap="round"/>
+    <!-- Left paw -->
+    <ellipse cx="400" cy="260" rx="19" ry="14" fill="#d97818"/>
+    <ellipse cx="390" cy="250" rx="7" ry="5" fill="#c8660a" transform="rotate(-15 390 250)"/>
+    <ellipse cx="402" cy="247" rx="7" ry="5" fill="#c8660a" transform="rotate(-5 402 247)"/>
+    <ellipse cx="413" cy="253" rx="7" ry="5" fill="#c8660a" transform="rotate(10 413 253)"/>
+
+    <!-- ═══ GI BODY (NAVY BLUE) ═══ -->
+    <polygon points="158,252 145,342 150,402 248,412 340,400 345,338 322,252"
+             fill="#1a4f7a" stroke="#123d5e" stroke-width="1"/>
+    <!-- Gi shading -->
+    <polygon points="158,252 145,342 150,402 200,405 210,340 195,270"
+             fill="#123d5e" opacity="0.4"/>
+
+    <!-- White inner shirt (V) -->
+    <polygon points="226,250 208,308 242,318 276,308 254,250" fill="#f5f5f5"/>
+
+    <!-- Left lapel -->
+    <polygon points="226,250 197,268 188,312 210,308 226,250" fill="#2471a3" stroke="#1a5276" stroke-width="1"/>
+    <!-- Right lapel -->
+    <polygon points="254,250 283,268 292,312 270,308 254,250" fill="#2471a3" stroke="#1a5276" stroke-width="1"/>
+
+    <!-- Gi stitching lines -->
+    <path d="M 213,256 L 203,292 L 216,304" fill="none" stroke="#123d5e" stroke-width="1.5" opacity="0.7"/>
+    <path d="M 267,256 L 277,292 L 264,304" fill="none" stroke="#123d5e" stroke-width="1.5" opacity="0.7"/>
+
+    <!-- ═══ BELT (BLACK + GOLD DAN) ═══ -->
+    <!-- Belt band -->
+    <polygon points="153,330 342,330 342,352 153,352" fill="#111"/>
+    <!-- Gold dan stripe -->
+    <rect x="228" y="330" width="22" height="22" fill="#f1c40f"/>
+    <!-- Belt knot -->
+    <rect x="215" y="326" width="50" height="30" rx="5" fill="#111" stroke="#333" stroke-width="1"/>
+    <rect x="234" y="326" width="12" height="30" fill="#f1c40f" opacity="0.9"/>
+    <!-- Belt tails -->
+    <line x1="222" y1="356" x2="212" y2="400" stroke="#111" stroke-width="9" stroke-linecap="round"/>
+    <line x1="258" y1="356" x2="268" y2="400" stroke="#111" stroke-width="9" stroke-linecap="round"/>
+    <!-- Belt shine -->
+    <line x1="158" y1="337" x2="335" y2="337" stroke="white" stroke-width="1" opacity="0.15"/>
+
+    <!-- ═══ ARMS ═══ -->
+    <!-- Left shoulder -->
+    <line x1="176" y1="255" x2="152" y2="308" stroke="#c8660a" stroke-width="20" stroke-linecap="round"/>
+    <!-- Right shoulder -->
+    <line x1="305" y1="255" x2="330" y2="308" stroke="#c8660a" stroke-width="20" stroke-linecap="round"/>
+    <!-- Gi sleeves -->
+    <polygon points="176,252 152,262 146,278 164,271 178,260" fill="#2471a3" opacity="0.95"/>
+    <polygon points="304,252 330,262 336,278 318,271 302,260" fill="#2471a3" opacity="0.95"/>
+
+    <!-- Crossed forearms -->
+    <line x1="155" y1="308" x2="328" y2="308" stroke="#d97818" stroke-width="20" stroke-linecap="round"/>
+    <!-- Left fist -->
+    <ellipse cx="153" cy="308" rx="17" ry="15" fill="#e07820"/>
+    <path d="M 144,302 Q 153,296 162,302" fill="none" stroke="#c8660a" stroke-width="2"/>
+    <!-- Right fist -->
+    <ellipse cx="327" cy="308" rx="17" ry="15" fill="#e07820"/>
+    <path d="M 318,302 Q 327,296 336,302" fill="none" stroke="#c8660a" stroke-width="2"/>
+
+    <!-- ═══ HEAD ═══ -->
+    <!-- Neck -->
+    <ellipse cx="242" cy="232" rx="27" ry="18" fill="#d97818"/>
+
+    <!-- Head base -->
+    <ellipse cx="242" cy="175" rx="71" ry="68" fill="#d97818"/>
+
+    <!-- ═══ EARS ═══ -->
+    <!-- Left ear -->
+    <path d="M 172,143 Q 153,108 159,72 Q 163,52 178,48 Q 198,44 208,66 Q 220,92 206,133 Z"
+          fill="#7a3e0f"/>
+    <path d="M 178,136 Q 163,106 168,76 Q 172,62 184,60 Q 198,58 203,78 Q 211,100 200,128 Z"
+          fill="#9b5015" opacity="0.8"/>
+    <!-- Right ear -->
+    <path d="M 312,143 Q 331,108 325,72 Q 321,52 306,48 Q 286,44 276,66 Q 264,92 278,133 Z"
+          fill="#7a3e0f"/>
+    <path d="M 306,136 Q 321,106 316,76 Q 312,62 300,60 Q 286,58 281,78 Q 273,100 284,128 Z"
+          fill="#9b5015" opacity="0.8"/>
+
+    <!-- ═══ HEADBAND (martial arts hachimaki) ═══ -->
+    <path d="M 173,150 Q 242,136 315,150 L 313,164 Q 242,151 174,164 Z"
+          fill="#0d3b6e" stroke="#0a2d52" stroke-width="1"/>
+    <!-- Headband center white stripe -->
+    <path d="M 188,152 Q 242,141 300,152 L 299,158 Q 242,148 189,158 Z"
+          fill="white" opacity="0.9"/>
+    <!-- Knot / tails (left side, like authentic hachimaki) -->
+    <line x1="174" y1="152" x2="154" y2="143" stroke="#0d3b6e" stroke-width="5" stroke-linecap="round"/>
+    <line x1="174" y1="161" x2="152" y2="168" stroke="#0d3b6e" stroke-width="5" stroke-linecap="round"/>
+    <!-- Small kanji on headband center -->
+    <text x="242" y="162" font-size="10" text-anchor="middle" fill="#f1c40f" font-family="serif" opacity="0.9">武</text>
+
+    <!-- ═══ MUZZLE ═══ -->
+    <ellipse cx="242" cy="201" rx="38" ry="27" fill="#c8841e"/>
+
+    <!-- Nose -->
+    <ellipse cx="242" cy="186" rx="13" ry="9" fill="#3d1e05"/>
+    <ellipse cx="239" cy="184" rx="4" ry="3" fill="#5a3010" opacity="0.6"/>
+
+    <!-- Mouth — confident smirk / sonrisa arrogante -->
+    <path d="M 228,207 Q 243,217 257,207" fill="none" stroke="#3d1e05" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 255,207 Q 260,210 258,215" fill="none" stroke="#3d1e05" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- ═══ EYES (half-closed, HK style) ═══ -->
+    <!-- Left -->
+    <ellipse cx="216" cy="170" rx="14" ry="11" fill="white"/>
+    <ellipse cx="217" cy="172" rx="9" ry="8" fill="#2a1200"/>
+    <ellipse cx="219" cy="169" rx="3" ry="2.5" fill="white" opacity="0.7"/>
+    <!-- Eyelid left -->
+    <path d="M 203,164 Q 216,158 230,164 L 229,170 Q 216,165 204,170 Z"
+          fill="#d97818"/>
+    <!-- Right -->
+    <ellipse cx="268" cy="170" rx="14" ry="11" fill="white"/>
+    <ellipse cx="267" cy="172" rx="9" ry="8" fill="#2a1200"/>
+    <ellipse cx="269" cy="169" rx="3" ry="2.5" fill="white" opacity="0.7"/>
+    <!-- Eyelid right -->
+    <path d="M 255,164 Q 268,158 282,164 L 281,170 Q 268,165 256,170 Z"
+          fill="#d97818"/>
+
+    <!-- Eyebrows (slightly arched/menacing) -->
+    <path d="M 203,153 Q 217,146 231,151" fill="none" stroke="#3d1e05" stroke-width="4" stroke-linecap="round"/>
+    <path d="M 254,151 Q 268,146 282,153" fill="none" stroke="#3d1e05" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- ═══ GI EMBLEM ═══ -->
+    <!-- Circle badge -->
+    <circle cx="242" cy="289" r="20" fill="#0a2d52" stroke="#2471a3" stroke-width="2"/>
+    <!-- Yin-yang simplified / 功 character -->
+    <text x="242" y="295" font-size="16" text-anchor="middle" fill="#f1c40f"
+          font-family="'Noto Serif SC', 'SimSun', serif" font-weight="bold">功</text>
+
+    <!-- ═══ BRAND ═══ -->
+    <text x="36" y="490" font-size="16" fill="#2471a3" font-family="'Arial', sans-serif"
+          font-weight="900" letter-spacing="3">INDIKA</text>
+    <text x="37" y="507" font-size="8" fill="#5d9cbc" font-family="sans-serif"
+          letter-spacing="4">MARTIAL ARTS</text>
+  </svg>
+</div>
+
+<!-- Belt system reference card -->
+<div class="card" style="min-width:240px;">
+  <h3>Sistema de Cinturões</h3>
+  <div class="belt-demo">
+    <div class="belt" style="background:#f5f5f5; color:#333; border:1px solid #ddd;">
+      <span>⬜ Branco</span><span style="font-size:10px">Nível 1</span>
+    </div>
+    <div class="belt" style="background:#ffd700; color:#333;">
+      <span>🟡 Amarelo</span><span style="font-size:10px">Nível 2</span>
+    </div>
+    <div class="belt" style="background:#ff6b00; color:white;">
+      <span>🟠 Laranja</span><span style="font-size:10px">Nível 3</span>
+    </div>
+    <div class="belt" style="background:#27ae60; color:white;">
+      <span>🟢 Verde</span><span style="font-size:10px">Nível 4</span>
+    </div>
+    <div class="belt" style="background:#2471a3; color:white;">
+      <span>🔵 Azul</span><span style="font-size:10px">Nível 5</span>
+    </div>
+    <div class="belt" style="background:#6c3483; color:white;">
+      <span>🟣 Roxo</span><span style="font-size:10px">Nível 6</span>
+    </div>
+    <div class="belt" style="background:#922b21; color:white;">
+      <span>🔴 Vermelho</span><span style="font-size:10px">Nível 7</span>
+    </div>
+    <div class="belt" style="background:#111; color:#f1c40f; border:1px solid #333;">
+      <span>⬛ Preto</span><span style="font-size:10px">Nível 8 — Master</span>
+    </div>
+  </div>
+  <p style="color:#5d9cbc; font-size:10px; margin-top:16px; line-height:1.6;">
+    Personagem usa o cinturão preto<br>com faixa dourada (1º Dan) —<br>o símbolo máximo do sistema.
+  </p>
+</div>
+
+</body>
+</html>

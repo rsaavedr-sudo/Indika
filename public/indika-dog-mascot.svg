@@ -1,0 +1,177 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 520" width="480" height="520">
+  <!-- Background -->
+  <rect width="480" height="520" fill="#1a1a2e" rx="24"/>
+
+  <!-- Decorative background circles (martial arts feel) -->
+  <circle cx="240" cy="260" r="200" fill="none" stroke="#16213e" stroke-width="2"/>
+  <circle cx="240" cy="260" r="165" fill="none" stroke="#0f3460" stroke-width="1.5"/>
+
+  <!-- Yin-yang inspired background mark (subtle) -->
+  <text x="240" y="480" font-size="28" text-anchor="middle" fill="#0f3460" font-family="serif" opacity="0.5">武道</text>
+
+  <!-- ═══════════════════════════════ -->
+  <!--           BODY                 -->
+  <!-- ═══════════════════════════════ -->
+
+  <!-- Left leg (raised kick) -->
+  <path d="M 285 340 Q 330 310 365 280 Q 385 265 400 260"
+        fill="none" stroke="#cc6600" stroke-width="22" stroke-linecap="round"/>
+  <!-- Left paw -->
+  <ellipse cx="403" cy="257" rx="20" ry="16" fill="#e07820" transform="rotate(-20 403 257)"/>
+  <ellipse cx="395" cy="248" rx="7" ry="5" fill="#cc6600"/>
+  <ellipse cx="407" cy="244" rx="7" ry="5" fill="#cc6600"/>
+  <ellipse cx="416" cy="250" rx="7" ry="5" fill="#cc6600"/>
+
+  <!-- Right leg (supporting) -->
+  <path d="M 245 370 Q 240 410 238 440 Q 237 455 235 465"
+        fill="none" stroke="#cc6600" stroke-width="22" stroke-linecap="round"/>
+  <!-- Right foot -->
+  <ellipse cx="233" cy="467" rx="22" ry="14" fill="#e07820"/>
+  <ellipse cx="220" cy="473" rx="7" ry="5" fill="#cc6600"/>
+  <ellipse cx="232" cy="476" rx="7" ry="5" fill="#cc6600"/>
+  <ellipse cx="244" cy="474" rx="7" ry="5" fill="#cc6600"/>
+
+  <!-- ════ GI / KIMONO (BLUE) ════ -->
+
+  <!-- Main gi body -->
+  <path d="M 160 250 Q 145 290 148 340 Q 150 380 155 400
+           L 200 405 L 245 408 L 295 405 L 335 395
+           Q 345 370 340 340 Q 335 295 320 255 Z"
+        fill="#1a5276" stroke="#154360" stroke-width="1.5"/>
+
+  <!-- White undershirt (V-collar) -->
+  <path d="M 225 248 L 210 300 L 240 310 L 270 300 L 255 248 Z"
+        fill="#f0f0f0"/>
+
+  <!-- Left gi lapel -->
+  <path d="M 225 248 Q 205 255 195 275 Q 185 295 183 320 L 208 310 L 225 248 Z"
+        fill="#2980b9" stroke="#1a5276" stroke-width="1"/>
+
+  <!-- Right gi lapel -->
+  <path d="M 255 248 Q 275 255 285 275 Q 295 295 297 320 L 272 310 L 255 248 Z"
+        fill="#2980b9" stroke="#1a5276" stroke-width="1"/>
+
+  <!-- Gi collar shadow / fold lines -->
+  <path d="M 215 255 L 205 290 L 220 300" fill="none" stroke="#154360" stroke-width="1.5" opacity="0.6"/>
+  <path d="M 265 255 L 275 290 L 260 300" fill="none" stroke="#154360" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- ════ BELT / CINTURÓN ════ -->
+  <!-- Belt base (black - master level) -->
+  <path d="M 155 335 Q 245 350 340 335 L 340 350 Q 245 365 155 350 Z"
+        fill="#1a1a1a" stroke="#111" stroke-width="1"/>
+  <!-- Belt shine -->
+  <path d="M 165 338 Q 245 348 330 338" fill="none" stroke="#444" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- Belt knot -->
+  <rect x="215" y="332" width="50" height="28" rx="4" fill="#1a1a1a" stroke="#333" stroke-width="1"/>
+  <!-- Belt tails -->
+  <path d="M 218 360 L 210 395 Q 208 402 205 405" fill="none" stroke="#1a1a1a" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 262" y="360" />
+  <path d="M 262 360 L 270 395 Q 272 402 275 405" fill="none" stroke="#1a1a1a" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- ARMS / BRAZOS -->
+  <!-- Left arm -->
+  <path d="M 175 255 Q 155 265 148 280 Q 142 295 150 308"
+        fill="none" stroke="#cc6600" stroke-width="20" stroke-linecap="round"/>
+  <!-- Left gi sleeve -->
+  <path d="M 178 253 Q 155 260 147 275 Q 158 270 172 265 Z"
+        fill="#2980b9" opacity="0.9"/>
+
+  <!-- Right arm -->
+  <path d="M 305 255 Q 325 265 333 280 Q 339 295 330 308"
+        fill="none" stroke="#cc6600" stroke-width="20" stroke-linecap="round"/>
+  <!-- Right gi sleeve -->
+  <path d="M 302 253 Q 325 260 334 275 Q 322 270 308 265 Z"
+        fill="#2980b9" opacity="0.9"/>
+
+  <!-- ════ CROSSED ARMS ════ -->
+  <!-- Forearm right over left -->
+  <path d="M 330 308 Q 295 315 260 318 Q 235 320 210 318 Q 185 315 165 308"
+        fill="none" stroke="#cc6600" stroke-width="20" stroke-linecap="round"/>
+  <!-- Right fist / paw -->
+  <ellipse cx="160" cy="308" rx="18" ry="16" fill="#e07820"/>
+  <!-- Left fist / paw  -->
+  <ellipse cx="327" cy="308" rx="18" ry="16" fill="#e07820"/>
+  <!-- Knuckle lines -->
+  <path d="M 152 302 Q 155 297 160 296 Q 165 297 168 302" fill="none" stroke="#cc6600" stroke-width="2"/>
+  <path d="M 319 302 Q 322 297 327 296 Q 332 297 335 302" fill="none" stroke="#cc6600" stroke-width="2"/>
+
+  <!-- ════ HEAD / CABEZA ════ -->
+
+  <!-- Neck -->
+  <ellipse cx="243" cy="230" rx="28" ry="18" fill="#e07820"/>
+
+  <!-- Head base -->
+  <ellipse cx="243" cy="175" rx="72" ry="68" fill="#e07820"/>
+
+  <!-- Muzzle / hocico -->
+  <ellipse cx="243" cy="200" rx="38" ry="28" fill="#cc8844"/>
+  <!-- Nose -->
+  <ellipse cx="243" cy="186" rx="14" ry="10" fill="#5a2d00"/>
+  <ellipse cx="240" cy="183" rx="4" ry="3" fill="#7a4a20" opacity="0.5"/>
+
+  <!-- Mouth - confident smirk -->
+  <path d="M 228 205 Q 243 215 258 205" fill="none" stroke="#5a2d00" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M 255 205 Q 260 208 258 212" fill="none" stroke="#5a2d00" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Eyes - cool, half-closed (Hong Kong Phooey style) -->
+  <!-- Left eye -->
+  <ellipse cx="217" cy="168" rx="13" ry="11" fill="white"/>
+  <ellipse cx="218" cy="170" rx="8" ry="7" fill="#3d2000"/>
+  <ellipse cx="220" cy="168" rx="3" ry="3" fill="white" opacity="0.6"/>
+  <!-- Heavy eyelid left -->
+  <path d="M 204 162 Q 217 157 230 162 L 228 168 Q 217 164 206 168 Z" fill="#cc6600"/>
+
+  <!-- Right eye -->
+  <ellipse cx="269" cy="168" rx="13" ry="11" fill="white"/>
+  <ellipse cx="268" cy="170" rx="8" ry="7" fill="#3d2000"/>
+  <ellipse cx="270" cy="168" rx="3" ry="3" fill="white" opacity="0.6"/>
+  <!-- Heavy eyelid right -->
+  <path d="M 256 162 Q 269 157 282 162 L 280 168 Q 269 164 258 168 Z" fill="#cc6600"/>
+
+  <!-- Eyebrow left (arrogant/cool) -->
+  <path d="M 205 155 Q 218 148 230 152" fill="none" stroke="#5a2d00" stroke-width="4" stroke-linecap="round"/>
+  <!-- Eyebrow right -->
+  <path d="M 256 152 Q 268 148 281 155" fill="none" stroke="#5a2d00" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- ════ EARS / OREJAS ════ -->
+  <!-- Left ear (droopy - dog style) -->
+  <path d="M 175 140 Q 155 110 160 75 Q 162 55 175 50 Q 195 45 205 65 Q 218 90 205 130 Z"
+        fill="#8B4513"/>
+  <path d="M 180 135 Q 165 110 170 80 Q 172 65 182 62 Q 196 60 200 78 Q 208 100 198 128 Z"
+        fill="#a0522d" opacity="0.7"/>
+
+  <!-- Right ear -->
+  <path d="M 305 140 Q 325 110 320 75 Q 318 55 305 50 Q 285 45 275 65 Q 262 90 275 130 Z"
+        fill="#8B4513"/>
+  <path d="M 300 135 Q 315 110 310 80 Q 308 65 298 62 Q 284 60 280 78 Q 272 100 282 128 Z"
+        fill="#a0522d" opacity="0.7"/>
+
+  <!-- ════ HEADBAND / CINTA (Martial arts) ════ -->
+  <!-- Blue headband with white stripe -->
+  <path d="M 172 148 Q 243 135 315 148 Q 315 160 310 164 Q 243 150 176 164 Z"
+        fill="#1a5276" stroke="#154360" stroke-width="1"/>
+  <!-- White center stripe on headband -->
+  <path d="M 185 150 Q 243 139 302 150 Q 302 155 299 157 Q 243 147 188 157 Z"
+        fill="white" opacity="0.85"/>
+
+  <!-- Headband tie / knot on side (left) -->
+  <path d="M 174 150 Q 162 145 155 140 Q 148 135 145 138"
+        fill="none" stroke="#1a5276" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 174 158 Q 160 158 150 162 Q 143 165 143 162"
+        fill="none" stroke="#1a5276" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- ════ HONG KONG FU SYMBOL ════ -->
+  <!-- Small Chinese character on gi chest (功夫 = kung fu) -->
+  <circle cx="243" cy="290" r="18" fill="#0f3460" stroke="#2980b9" stroke-width="1.5"/>
+  <text x="243" y="296" font-size="14" text-anchor="middle" fill="#f39c12" font-family="serif" font-weight="bold">功</text>
+
+  <!-- ════ BELT RANK STRIPE ════ -->
+  <!-- Gold/yellow stripe on belt (dan stripe) -->
+  <rect x="235" y="333" width="16" height="44" rx="2" fill="#f1c40f" opacity="0.9"/>
+
+  <!-- ════ SIGNATURE / BRAND ════ -->
+  <text x="40" y="490" font-size="18" fill="#2980b9" font-family="sans-serif" font-weight="bold" opacity="0.8">INDIKA</text>
+  <text x="40" y="507" font-size="9" fill="#7fb3d3" font-family="sans-serif" letter-spacing="3">MARTIAL ARTS</text>
+
+</svg>

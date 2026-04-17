@@ -75,6 +75,14 @@ interface CampanhaEnhanced {
   // Visibility
   notas_internas?: string;
   imagemUrl?: string;
+  // Segmentation
+  segmentacao?: {
+    sexo?: 'masculino' | 'feminino' | 'todos';
+    idadeMin?: number;
+    idadeMax?: number;
+    estados?: string[];
+  };
+  prioridade?: 'HIGH' | 'MEDIUM' | 'LOW';
   // Status
   status: 'rascunho' | 'ativa' | 'pausada' | 'finalizada' | 'inativa';
   dataInicio: Timestamp;

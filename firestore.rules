@@ -164,5 +164,17 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
       allow update: if isAdmin();
     }
+
+    // Máquina da Sorte — global config (admin writes, all authenticated users read)
+    match /maquina_da_sorte_config/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Máquina da Sorte — play logs (user creates their own; admins read all)
+    match /maquina_da_sorte_logs/{logId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
   }
 }

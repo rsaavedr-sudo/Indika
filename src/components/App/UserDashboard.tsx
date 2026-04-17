@@ -47,7 +47,9 @@ import {
   ReceiptText,
   Settings,
   ClipboardList,
+  Dices,
 } from 'lucide-react';
+import MaquinaDaSorte from './MaquinaDaSorte';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 
@@ -116,7 +118,7 @@ interface MissaoParticipation {
   createdAt: any;
 }
 
-type Section = 'home' | 'campanhas' | 'missoes' | 'comprar' | 'loja' | 'sacar' | 'extrato' | 'configuracoes';
+type Section = 'home' | 'campanhas' | 'missoes' | 'comprar' | 'loja' | 'sacar' | 'extrato' | 'configuracoes' | 'maquina';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -163,7 +165,8 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode; dividerBef
   { id: 'missoes',   label: 'Missões',         icon: <Target className="w-[18px] h-[18px]" /> },
   { id: 'comprar',   label: 'Comprar Pontos',  icon: <Sparkles className="w-[18px] h-[18px]" /> },
   { id: 'loja',      label: 'Loja Virtual',    icon: <Gift className="w-[18px] h-[18px]" /> },
-  { id: 'sacar',          label: 'Sacar Pontos',    icon: <DollarSign className="w-[18px] h-[18px]" />, dividerBefore: true },
+  { id: 'maquina',        label: 'Máquina da Sorte', icon: <Dices className="w-[18px] h-[18px]" />, dividerBefore: true },
+  { id: 'sacar',          label: 'Sacar Pontos',    icon: <DollarSign className="w-[18px] h-[18px]" /> },
   { id: 'extrato',        label: 'Extrato',         icon: <ReceiptText className="w-[18px] h-[18px]" /> },
   { id: 'configuracoes',  label: 'Configurações',   icon: <Settings className="w-[18px] h-[18px]" /> },
 ];
@@ -563,6 +566,7 @@ export default function UserDashboard() {
               {activeSection === 'missoes' && (
                 <MissoesSection userId={user?.uid || ''} pontos={pontos} />
               )}
+              {activeSection === 'maquina' && <MaquinaDaSorte />}
               {activeSection === 'sacar' && <WithdrawPage />}
               {activeSection === 'extrato' && <StatementPage />}
               {activeSection === 'configuracoes' && <UserSettings />}

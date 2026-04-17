@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   Users, LogOut, Trophy,
   User, ChevronLeft, ChevronRight, Shield, Target, Layers, LayoutDashboard,
-  DollarSign, Settings2, ClipboardList,
+  DollarSign, Settings2, ClipboardList, Dices,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -18,7 +18,7 @@ interface NavItem {
   soon?: boolean;
 }
 
-export type AdminSection = 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'comprar-pontos' | 'withdrawals' | 'finance' | 'surveys';
+export type AdminSection = 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'comprar-pontos' | 'withdrawals' | 'finance' | 'surveys' | 'venda_pontos' | 'maquina_sorte';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -39,8 +39,9 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
   ];
 
   const financeNav: NavItem[] = [
-    { label: 'Saques Pix',   icon: <DollarSign className="w-[18px] h-[18px]" />, href: '/admin?tab=withdrawals' },
-    { label: 'Configurações', icon: <Settings2 className="w-[18px] h-[18px]" />,  href: '/admin?tab=finance'     },
+    { label: 'Saques Pix',      icon: <DollarSign className="w-[18px] h-[18px]" />, href: '/admin?tab=withdrawals'   },
+    { label: 'Configurações',   icon: <Settings2 className="w-[18px] h-[18px]" />,  href: '/admin?tab=finance'       },
+    { label: 'Máquina da Sorte', icon: <Dices className="w-[18px] h-[18px]" />,     href: '/admin?tab=maquina_sorte' },
   ];
 
   const sectionMap: Record<AdminSection, string> = {
@@ -53,6 +54,8 @@ export default function AdminLayout({ children, activeSection }: AdminLayoutProp
     withdrawals: '/admin?tab=withdrawals',
     finance: '/admin?tab=finance',
     surveys: '/admin?tab=surveys',
+    venda_pontos: '/admin?tab=venda_pontos',
+    maquina_sorte: '/admin?tab=maquina_sorte',
   };
 
   return (

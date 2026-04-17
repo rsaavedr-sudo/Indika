@@ -46,6 +46,7 @@ import WithdrawalsAdmin from './WithdrawalsAdmin';
 import FinanceSettings from './FinanceSettings';
 import SurveysAdmin from './SurveysAdmin';
 import VendaPontosAdmin from './VendaPontosAdmin';
+import MaquinaDaSorteAdmin from './MaquinaDaSorteAdmin';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -138,7 +139,7 @@ function effectiveTipo(c: Campanha)   { return c.tipo_campanha || c.tipo || ''; 
 export default function AdminDashboard() {
   const { profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance' | 'surveys' | 'venda_pontos') || 'dashboard';
+  const activeTab = (searchParams.get('tab') as 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance' | 'surveys' | 'venda_pontos' | 'maquina_sorte') || 'dashboard';
 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
@@ -152,7 +153,7 @@ export default function AdminDashboard() {
   const [cidadeFilter, setCidadeFilter] = useState<string>('');
   const [statusUserFilter, setStatusUserFilter] = useState<string>('todos');
 
-  const setTab = (tab: 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance' | 'surveys' | 'venda_pontos') => {
+  const setTab = (tab: 'dashboard' | 'usuarios' | 'campanhas' | 'faixas' | 'missoes' | 'withdrawals' | 'finance' | 'surveys' | 'venda_pontos' | 'maquina_sorte') => {
     setSearchParams({ tab });
     setSearchTerm('');
     setUfFilter('');
@@ -238,7 +239,7 @@ export default function AdminDashboard() {
     new Set(campanhas.map(c => effectiveTipo(c)).filter(Boolean) as string[])
   );
 
-  const activeSection = (['dashboard', 'campanhas', 'faixas', 'missoes', 'comprar-pontos', 'withdrawals', 'finance'].includes(activeTab)
+  const activeSection = (['dashboard', 'campanhas', 'faixas', 'missoes', 'comprar-pontos', 'withdrawals', 'finance', 'surveys', 'venda_pontos', 'maquina_sorte'].includes(activeTab)
     ? activeTab
     : 'usuarios') as AdminSection;
 
@@ -274,6 +275,7 @@ export default function AdminDashboard() {
               : activeTab === 'finance' ? 'Configurações Financeiras'
               : activeTab === 'surveys' ? 'Pesquisas'
               : activeTab === 'venda_pontos' ? 'Venda de Pontos'
+              : activeTab === 'maquina_sorte' ? 'Máquina da Sorte'
               : 'Faixas'}
           </h1>
           <p className="text-xs text-zinc-400">
@@ -293,6 +295,8 @@ export default function AdminDashboard() {
               ? 'Crie e gerencie pesquisas para os usuários'
               : activeTab === 'venda_pontos'
               ? 'Monitore vendas de pontos e receitas'
+              : activeTab === 'maquina_sorte'
+              ? 'Configure e monitore a Máquina da Sorte'
               : 'Configure os níveis de pontuação'}
           </p>
         </div>
@@ -320,6 +324,9 @@ export default function AdminDashboard() {
 
         {/* ── Venda de Pontos tab ── */}
         {activeTab === 'venda_pontos' && <VendaPontosAdmin />}
+
+        {/* ── Máquina da Sorte tab ── */}
+        {activeTab === 'maquina_sorte' && <MaquinaDaSorteAdmin />}
 
         {/* ── Stats (only for usuarios / campanhas) ── */}
         {(activeTab === 'usuarios' || activeTab === 'campanhas') && (<>
